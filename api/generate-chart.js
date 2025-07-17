@@ -29,11 +29,10 @@ module.exports = async (req, res) => {
     try {
         // --- 1. BUSCA DE DADOS DO GITHUB (MESMA LÓGICA DO SEU FRONT-END) ---
         const headers = {};
-        // Opcional: Se você tiver um PAT no ambiente do Vercel (variável de ambiente)
-        // if (process.env.GITHUB_PAT) {
-        //     headers['Authorization'] = `token ${process.env.GITHUB_PAT}`;
-        // }
-
+        if (process.env.GITHUB_PAT) { // Verifica se a variável de ambiente GITHUB_PAT existe
+            headers['Authorization'] = `token ${process.env.GITHUB_PAT}`; // Usa o token da variável de ambiente
+        }
+        
         const reposResponse = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`, { headers: headers });
 
         if (!reposResponse.ok) {
