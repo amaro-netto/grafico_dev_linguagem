@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status de Linguagens GitHub</title>
+    <!-- Incluindo a biblioteca Chart.js do CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Define que HTML e BODY ocupem 100% da altura da viewport e remove margens/paddings padrão */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Estilos para o corpo da página, centralizando o conteúdo */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column; /* Para empilhar os containers verticalmente */
+            justify-content: flex-start; /* Alinha o conteúdo ao topo */
+            align-items: center;
+            background-color: #f0f2f5; /* Cor de fundo suave */
+            padding: 20px 0; /* Adiciona um pouco de padding vertical para não colar nas bordas */
+            min-height: 100vh; /* Garante que o body ocupe a altura total da tela */
+        }
+
+        /* Contêiner principal do gráfico e dos controles */
+        .chart-container {
+            width: 80%; /* Largura responsiva */
+            max-width: 600px; /* Largura máxima para desktop */
+            background-color: #fff; /* Fundo branco */
+            padding: 20px;
+            border-radius: 8px; /* Cantos arredondados */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra suave */
+            display: flex; /* Usa flexbox para organização interna */
+            flex-direction: column; /* Elementos empilhados verticalmente */
+            align-items: center; /* Centraliza horizontalmente os itens */
+            box-sizing: border-box; /* Garante que padding e borda não aumentem o tamanho total */
+            text-align: center; /* Centraliza o texto */
+            margin-bottom: 20px; /* Adiciona margem abaixo do container do gráfico */
+        }
+
+        /* Estilo para o elemento canvas onde o gráfico é desenhado */
+        canvas {
+            width: 100% !important; /* Garante que o canvas ocupe a largura total do pai */
+            height: auto !important; /* Altura automática para manter a proporção */
+        }
+
+        /* Estilo para o campo de entrada do nome de usuário */
+        #github-username {
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 70%;
+            max-width: 250px;
+        }
+
+        /* Estilo para o botão "Gerar Gráfico" */
+        button {
+            padding: 10px 15px;
+            background-color: #007bff; /* Azul vibrante */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer; /* Indica que é clicável */
+            font-size: 16px;
+            margin-bottom: 10px;
+            transition: background-color 0.3s ease; /* Transição suave no hover */
+        }
+
+        button:hover {
+            background-color: #0056b3; /* Azul mais escuro no hover */
+        }
+
+        /* Estilos para mensagens de carregamento e erro */
+        #loading-message, #error-message {
+            margin-top: 10px;
+            font-style: italic;
+            color: #555;
+            display: none; /* Escondido por padrão */
+            word-break: break-word; /* Quebra palavras longas para evitar overflow */
+        }
+
+        #error-message {
+            color: red; /* Mensagens de erro em vermelho */
+        }
+
+        /* Contêiner para a saída do código Markdown - AGORA É UM CONTÊINER SEPARADO */
+        #markdown-output {
+            width: 80%; /* Largura responsiva, igual ao chart-container */
+            max-width: 600px; /* Largura máxima, igual ao chart-container */
+            background-color: #fff; /* Fundo branco */
+            padding: 20px;
+            border-radius: 8px; /* Cantos arredondados */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra suave */
+            display: none; /* Escondido por padrão */
+            text-align: center; /* Centraliza o texto */
+        }
+
+        /* Estilo para a área de texto do código Markdown */
+        #markdown-code {
+            width: 100%; /* Ocupa a largura total do pai */
+            resize: vertical; /* Permite redimensionamento vertical */
+        }
+
+        /* Estilo para o aviso de Base64 */
+        .base64-warning {
+            color: orange;
+            font-size: 0.9em;
+            margin-top: 10px;
+            text-align: left;
+        }
+
+        /* Estilo para a seção de outras linguagens */
+        #other-languages-output {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #666;
+            text-align: center; /* Centraliza as tags */
+            display: none; /* Escondido por padrão */
+            width: 100%; /* Ocupa a largura total para centralizar */
+        }
+
+        #other-languages-output span {
+            display: inline-block; /* Tags lado a lado */
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            padding: 3px 8px;
+            margin: 2px; /* Margem menor para ficarem mais próximas */
+            white-space: nowrap; /* Evita quebras de linha dentro da tag */
+        }
+    </style>
+</head>
+<body>
+    <div class="chart-container">
+        <h1>Minhas Linguagens GitHub</h1>
+        <input type="text" id="github-username" placeholder="Digite seu nome de usuário do GitHub">
+        <button onclick="getGitHubLanguages()">Gerar Gráfico</button>
+        <p id="loading-message">Carregando dados... Isso pode demorar para muitos repositórios e usar o limite da API.</p>
+        <p id="error-message"></p>
+        <canvas id="linguagensRadar"></canvas>
+
+        <!-- Seção para exibir outras linguagens -->
+        <div id="other-languages-output">
+        </div>
+    </div>
+
+    <!-- A seção markdown-output agora está FORA do chart-container -->
+    <div id="markdown-output">
+        <h3>Código Markdown para seu README.md:</h3>
+        <p class="base64-warning">
+            Atenção: Este código Markdown incorpora a imagem diretamente (Base64). Isso pode tornar seu README.md muito grande e afetar a performance de carregamento. Para melhor performance, considere hospedar a imagem externamente.
+        </p>
+        <textarea id="markdown-code" rows="8" cols="50" readonly></textarea>
+        <button onclick="copyMarkdown()">Copiar Código</button>
+    </div>
+
+    <script>
+        // Variável global para armazenar a instância do gráfico Chart.js
+        let meuGraficoRadar = null;
+
+        // Opcional: Se você tiver um Personal Access Token (PAT) do GitHub,
+        // pode colá-lo aqui para aumentar o limite de requisições da API.
+        // AVISO: NÃO FAÇA ISSO EM PROJETOS PÚBLICOS OU DE PRODUÇÃO SEM UM BACKEND SEGURO!
+        // const GITHUB_PAT = 'SEU_TOKEN_AQUI'; // Ex: ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+        /**
+         * Função para obter um parâmetro da URL.
+         * @param {string} param - O nome do parâmetro a ser buscado.
+         * @returns {string|null} O valor do parâmetro ou null se não encontrado.
+         */
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        /**
+         * Função assíncrona principal para buscar dados do GitHub e gerar o gráfico.
+         * @param {string|null} usernameFromParam - Nome de usuário passado via parâmetro de URL, se houver.
+         */
+        async function getGitHubLanguages(usernameFromParam = null) {
+            // Obtém referências aos elementos HTML
+            const usernameInput = document.getElementById('github-username');
+            // Prioriza o nome de usuário da URL, caso contrário, pega do input
+            const username = usernameFromParam || usernameInput.value.trim();
+
+            const loadingMessage = document.getElementById('loading-message');
+            const errorMessage = document.getElementById('error-message');
+            const markdownOutput = document.getElementById('markdown-output');
+            const markdownCode = document.getElementById('markdown-code');
+            const otherLanguagesOutput = document.getElementById('other-languages-output'); // Nova referência
+
+            // Limpa mensagens de erro e esconde a saída Markdown e outras linguagens no início
+            errorMessage.style.display = 'none';
+            errorMessage.textContent = '';
+            markdownOutput.style.display = 'none'; // Esconde a saída Markdown
+            otherLanguagesOutput.style.display = 'none'; // Esconde a seção de outras linguagens
+            otherLanguagesOutput.innerHTML = '';           // Limpa o conteúdo da própria div
+
+            // Valida se um nome de usuário foi fornecido
+            if (!username) {
+                errorMessage.textContent = 'Por favor, digite um nome de usuário do GitHub.';
+                errorMessage.style.display = 'block';
+                loadingMessage.style.display = 'none';
+                return; // Sai da função se não houver nome de usuário
+            }
+
+            loadingMessage.style.display = 'block'; // Mostra a mensagem de carregamento
+
+            try {
+                // Configura os cabeçalhos para incluir o PAT, se definido
+                const headers = {};
+                // if (typeof GITHUB_PAT !== 'undefined' && GITHUB_PAT) {
+                //     headers['Authorization'] = `token ${GITHUB_PAT}`;
+                // }
+
+                // 1. Busca os repositórios do usuário
+                // per_page=100 busca até 100 repositórios por página (padrão é 30)
+                const reposResponse = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`, { headers: headers }); 
+
+                // Verifica se a resposta da API foi bem-sucedida (status 2xx)
+                if (!reposResponse.ok) {
+                    if (reposResponse.status === 404) {
+                        throw new Error('Usuário não encontrado. Verifique o nome de usuário.');
+                    }
+                    // Verifica se o limite de requisições da API foi excedido (status 403)
+                    if (reposResponse.status === 403 && reposResponse.headers.get('X-RateLimit-Remaining') === '0') {
+                        throw new Error('Limite de requisições da API do GitHub excedido. Tente novamente mais tarde ou use um Personal Access Token.');
+                    }
+                    throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
+                }
+
+                // Converte a resposta para JSON
+                const repos = await reposResponse.json();
+
+                const languageBytes = {}; // Objeto para armazenar a contagem de bytes de cada linguagem
+                let totalBytes = 0; // Soma total de todos os bytes de código
+
+                // 2. Para cada repositório, busca as linguagens e suas contagens de bytes
+                // Usamos Promise.all para fazer as requisições em paralelo e otimizar o tempo
+                const languageRequests = repos.map(async (repo) => {
+                    // Opcional: Ignorar forks para focar apenas no código original do usuário
+                    // if (repo.fork) {
+                    //     return;
+                    // }
+
+                    const langUrl = repo.languages_url; // URL específica para as linguagens do repositório
+                    const langResponse = await fetch(langUrl, { headers: headers });
+
+                    if (!langResponse.ok) {
+                        console.warn(`Não foi possível buscar linguagens para o repositório ${repo.name}: ${langResponse.statusText}`);
+                        return; // Pula este repositório se houver erro na requisição de linguagens
+                    }
+                    const langsData = await langResponse.json(); // Dados de linguagens por bytes
+
+                    // Soma os bytes de cada linguagem encontrada neste repositório
+                    for (const lang in langsData) {
+                        if (langsData.hasOwnProperty(lang)) {
+                            languageBytes[lang] = (languageBytes[lang] || 0) + langsData[lang];
+                            totalBytes += langsData[lang];
+                        }
+                    }
+                });
+
+                // Espera que todas as requisições de linguagens de repositório terminem
+                await Promise.all(languageRequests);
+
+                // Converte a contagem de bytes para porcentagens
+                const languagePercentages = {};
+                for (const lang in languageBytes) {
+                    if (languageBytes.hasOwnProperty(lang) && totalBytes > 0) {
+                        languagePercentages[lang] = (languageBytes[lang] / totalBytes) * 100;
+                    }
+                }
+
+                // Converte o objeto de porcentagens em um array de [linguagem, porcentagem] e ordena
+                const sortedLanguages = Object.entries(languagePercentages)
+                    .sort(([,a], [,b]) => b - a); // Ordena em ordem decrescente de porcentagem
+                
+                // --- LÓGICA PARA GARANTIR SEMPRE 5 PONTAS NO GRÁFICO DE RADAR ---
+                const MAX_RADAR_POINTS = 5; // Define o número desejado de pontas para o radar
+                let finalLabels = []; // Rótulos finais para o gráfico (Top 5)
+                let finalData = [];   // Dados finais para o gráfico (Top 5)
+                let otherLanguages = []; // Array para armazenar as linguagens que não estão no top 5
+
+                // Se não houver linguagens encontradas, preenche com rótulos genéricos e valores zero
+                if (sortedLanguages.length === 0) {
+                    for (let i = 0; i < MAX_RADAR_POINTS; i++) {
+                        finalLabels.push(`Linguagem ${i + 1}`);
+                        finalData.push(0);
+                    }
+                    errorMessage.textContent = 'Nenhum repositório público com código detectável encontrado para este usuário. Exibindo gráfico padrão.';
+                    errorMessage.style.display = 'block';
+                } else {
+                    // Preenche com as linguagens reais encontradas (até o limite de 5)
+                    for (let i = 0; i < sortedLanguages.length; i++) {
+                        if (i < MAX_RADAR_POINTS) {
+                            finalLabels.push(sortedLanguages[i][0]); // Apenas o nome da linguagem
+                            finalData.push(sortedLanguages[i][1]);   // A porcentagem
+                        } else {
+                            // Adiciona as linguagens restantes à lista de "outras"
+                            otherLanguages.push(sortedLanguages[i]);
+                        }
+                    }
+                    // Se o número de linguagens reais for menor que 5, preenche o restante com valores zero
+                    while (finalLabels.length < MAX_RADAR_POINTS) {
+                        finalLabels.push(`Linguagem ${finalLabels.length + 1}`); // Nome genérico para os pontos extras
+                        finalData.push(0); // Valor zero para que a ponta esteja no centro
+                    }
+                }
+                // --- FIM DA LÓGICA DE 5 PONTOS ---
+
+                // Checagem de segurança caso a lógica acima não gere dados (improvável)
+                if (finalLabels.length === 0) {
+                    errorMessage.textContent = 'Não foi possível gerar o gráfico de linguagens.';
+                    errorMessage.style.display = 'block';
+                    loadingMessage.style.display = 'none';
+                    if (meuGraficoRadar) {
+                        meuGraficoRadar.destroy();
+                        meuGraficoRadar = null;
+                    }
+                    return;
+                }
+
+                // Destrói a instância anterior do gráfico se ela existir, para evitar sobreposição
+                if (meuGraficoRadar) {
+                    meuGraficoRadar.destroy();
+                }
+
+                // Obtém o contexto 2D do elemento canvas
+                const ctx = document.getElementById('linguagensRadar').getContext('2d');
+
+                // Calcula o valor máximo dinâmico para a escala do radar
+                const maxDataValue = Math.max(...finalData);
+                // Garante que o suggestedMax seja pelo menos 20 (para gráficos com valores muito baixos)
+                // e adiciona um buffer de 10% ao maior valor para melhor visualização
+                const dynamicSuggestedMax = Math.max(20, maxDataValue + (maxDataValue * 0.1));
+
+                // Cria uma nova instância do gráfico Chart.js
+                meuGraficoRadar = new Chart(ctx, {
+                    type: 'radar', // Tipo de gráfico: radar
+                    data: {
+                        labels: finalLabels, // Rótulos dos eixos (nomes das linguagens)
+                        datasets: [{
+                            label: '', // Rótulo vazio para a legenda
+                            data: finalData, // Valores para cada eixo
+                            // Cores de fundo para os segmentos do gráfico
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.6)', // Vermelho
+                                'rgba(54, 162, 235, 0.6)', // Azul
+                                'rgba(255, 206, 86, 0.6)', // Amarelo
+                                'rgba(75, 192, 192, 0.6)', // Verde Água
+                                'rgba(153, 102, 255, 0.6)' // Roxo
+                            ],
+                            // Cores das bordas das linhas do gráfico
+                            borderColor: [
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(153, 102, 255, 1)'
+                            ],
+                            borderWidth: 1 // Largura da borda
+                        }]
+                    },
+                    options: {
+                        responsive: true, // Torna o gráfico responsivo
+                        maintainAspectRatio: true, // Garante que o gráfico mantenha a proporção
+                        aspectRatio: 1, // Define o gráfico como um quadrado (largura:altura = 1:1)
+                        elements: {
+                            line: {
+                                borderWidth: 3 // Espessura da linha do radar
+                            }
+                        },
+                        scale: {
+                            r: {
+                                angleLines: {
+                                    display: false // Oculta as linhas que irradiam do centro
+                                },
+                                suggestedMin: 0, // Valor mínimo da escala
+                                suggestedMax: dynamicSuggestedMax, // Valor máximo da escala (dinâmico)
+                                ticks: {
+                                    display: false, // Oculta os números da escala radial (0, 10, 20...)
+                                },
+                                pointLabels: {
+                                    font: {
+                                        size: 14,
+                                        weight: 'bold' // Deixa os rótulos das linguagens em negrito
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false, // Oculta a legenda inteira
+                            },
+                            title: {
+                                display: true, // Exibe o título do gráfico
+                                // Título agora reflete que a estatística é por bytes
+                                text: `Top 5 Linguagens por Bytes de Código de ${username}`,
+                                font: {
+                                    size: 18
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // --- LÓGICA PARA EXIBIR OUTRAS LINGUAGENS ---
+                if (otherLanguages.length > 0) {
+                    // Prepara o HTML para as tags de outras linguagens
+                    const otherLanguagesHtml = otherLanguages.map(item => {
+                        return `<span>${item[0]}</span>`; // Apenas o nome da linguagem na tag
+                    }).join(''); // Converte em uma string HTML
+                    
+                    // Insere o HTML na div e a torna visível
+                    otherLanguagesOutput.innerHTML = otherLanguagesHtml;
+                    otherLanguagesOutput.style.display = 'block';
+                } else {
+                    otherLanguagesOutput.style.display = 'none'; // Esconde se não houver outras linguagens
+                }
+                // --- FIM DA LÓGICA DE OUTRAS LINGUAGENS ---
+
+
+                // Geração do Código Markdown para o README.md
+                // Espera um pequeno momento para o Chart.js renderizar completamente
+                await new Promise(resolve => setTimeout(resolve, 100)); 
+                const canvas = document.getElementById('linguagensRadar');
+                const imageDataURL = canvas.toDataURL('image/png'); // Converte o canvas em uma imagem PNG Base64
+
+                // Cria o código Markdown com a imagem Base64
+                const markdownImageCode = `![Gráfico de Linguagens GitHub para ${username}](data:image/png;base64,${imageDataURL.split(',')[1]})`;
+                
+                // Preenche a área de texto e exibe o contêiner Markdown
+                markdownCode.value = markdownImageCode;
+                markdownOutput.style.display = 'block';
+
+            } catch (error) {
+                // Captura e exibe erros durante o processo
+                console.error('Erro ao buscar dados do GitHub:', error);
+                errorMessage.textContent = `Erro: ${error.message}. Tente novamente.`;
+                errorMessage.style.display = 'block';
+                // Destrói o gráfico existente em caso de erro
+                 if (meuGraficoRadar) {
+                    meuGraficoRadar.destroy();
+                    meuGraficoRadar = null;
+                }
+            } finally {
+                // Sempre esconde a mensagem de carregamento ao finalizar
+                loadingMessage.style.display = 'none';
+            }
+        }
+
+        /**
+         * Função para copiar o código Markdown para a área de transferência.
+         */
+        function copyMarkdown() {
+            const markdownCode = document.getElementById('markdown-code');
+            markdownCode.select(); // Seleciona o texto na área de texto
+            markdownCode.setSelectionRange(0, 99999); // Para compatibilidade com dispositivos móveis
+            document.execCommand('copy'); // Executa o comando de cópia
+            alert('Código Markdown copiado para a área de transferência!'); // Alerta de sucesso
+        }
+
+        // Executa quando a janela é completamente carregada
+        window.onload = () => {
+            const urlUsername = getQueryParam('username'); // Tenta obter o nome de usuário da URL
+            if (urlUsername) {
+                document.getElementById('github-username').value = urlUsername; // Preenche o input
+                getGitHubLanguages(urlUsername); // Gera o gráfico automaticamente
+            }
+        };
+    </script>
+</body>
+</html>
