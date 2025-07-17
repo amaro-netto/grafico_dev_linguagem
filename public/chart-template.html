@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gráfico de Linguagens</title>
+    <!-- Incluindo a biblioteca Chart.js do CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* CSS mínimo para o gráfico */
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Garante que o body ocupe a altura total para centralizar */
+            background-color: transparent; /* Fundo transparente para a imagem */
+        }
+        canvas {
+            width: 500px !important; /* Tamanho fixo para o screenshot */
+            height: 500px !important; /* Tamanho fixo para o screenshot */
+            background-color: #fff; /* Fundo branco para o gráfico */
+            border-radius: 8px; /* Cantos arredondados */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="linguagensRadar"></canvas>
+
+    <script>
+        // Esta função será chamada pelo Puppeteer para desenhar o gráfico
+        // Ela não tem a lógica de busca de dados, apenas de renderização
+        function drawChart(username, labels, data, maxDataValue) {
+            const ctx = document.getElementById('linguagensRadar').getContext('2d');
+
+            // Destrói o gráfico anterior se existir
+            if (window.myChartInstance) {
+                window.myChartInstance.destroy();
+            }
+
+            // Garante um suggestedMax mínimo de 20 para a escala
+            const dynamicSuggestedMax = Math.max(20, maxDataValue + (maxDataValue * 0.1));
+
+            window.myChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '',
+                        data: data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.6)',
+                            'rgba(54, 162, 235, 0.6)',
+                            'rgba(255, 206, 86, 0.6)',
+                            'rgba(75, 192, 192, 0.6)',
+                            'rgba(153, 102, 255, 0.6)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 1, // Garante que o gráfico seja um quadrado
+                    elements: {
+                        line: {
+                            borderWidth: 3
+                        }
+                    },
+                    scale: {
+                        r: {
+                            angleLines: {
+                                display: false
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: dynamicSuggestedMax,
+                            ticks: {
+                                display: false
+                            },
+                            pointLabels: {
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: `Top 5 Linguagens por Bytes de Código de ${username}`,
+                            font: {
+                                size: 18
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

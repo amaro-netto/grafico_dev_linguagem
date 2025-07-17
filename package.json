@@ -1,0 +1,16 @@
+{
+  "name": "github-language-radar-generator",
+  "version": "1.0.0",
+  "description": "Gerador de gráfico de radar de linguagens GitHub dinâmico para README.md",
+  "main": "api/generate-chart.js",
+  "scripts": {
+    "start": "node api/generate-chart.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.1",
+    "puppeteer-core": "^22.12.1"
+  },
+  "devDependencies": {
+    "puppeteer": "^22.12.1"
+  }
+}

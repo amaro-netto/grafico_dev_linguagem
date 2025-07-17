@@ -1,0 +1,163 @@
+// Importa as bibliotecas necessárias
+const fetch = require('node-fetch'); // Para fazer requisições HTTP (API GitHub)
+const path = require('path');       // Para lidar com caminhos de arquivo
+const fs = require('fs/promises');  // Para ler arquivos de forma assíncrona
+const puppeteer = require('puppeteer-core'); // Versão leve do Puppeteer para serverless
+
+// Caminho para o executável do Chromium no ambiente Vercel (ou local)
+// Este caminho é específico para o ambiente Vercel/Lambda
+const CHROME_EXECUTABLE_PATH = process.env.CHROME_EXECUTABLE_PATH || '/usr/bin/chromium-browser';
+
+// Função principal da sua função serverless
+module.exports = async (req, res) => {
+    // Define o cabeçalho Content-Type como imagem PNG
+    res.setHeader('Content-Type', 'image/png');
+    // Define cabeçalhos de cache para que a imagem seja atualizada a cada hora
+    res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate');
+
+    // Obtém o nome de usuário da query string da URL (ex: ?username=amaro-netto)
+    const username = req.query.username;
+
+    // Se o nome de usuário não for fornecido, retorna uma imagem de erro ou mensagem
+    if (!username) {
+        // Você pode gerar uma imagem de erro aqui ou redirecionar para uma imagem padrão
+        return res.status(400).send('Erro: Nome de usuário do GitHub não fornecido.');
+    }
+
+    let browser = null; // Variável para a instância do navegador Puppeteer
+
+    try {
+        // --- 1. BUSCA DE DADOS DO GITHUB (MESMA LÓGICA DO SEU FRONT-END) ---
+        const headers = {};
+        // Opcional: Se você tiver um PAT no ambiente do Vercel (variável de ambiente)
+        // if (process.env.GITHUB_PAT) {
+        //     headers['Authorization'] = `token ${process.env.GITHUB_PAT}`;
+        // }
+
+        const reposResponse = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`, { headers: headers });
+
+        if (!reposResponse.ok) {
+            if (reposResponse.status === 404) {
+                return res.status(404).send('Erro: Usuário do GitHub não encontrado.');
+            }
+            if (reposResponse.status === 403 && reposResponse.headers.get('X-RateLimit-Remaining') === '0') {
+                return res.status(429).send('Erro: Limite de requisições da API do GitHub excedido. Tente novamente mais tarde.');
+            }
+            throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
+        }
+
+        const repos = await reposResponse.json();
+
+        const languageBytes = {};
+        let totalBytes = 0;
+
+        const languageRequests = repos.map(async (repo) => {
+            const langUrl = repo.languages_url;
+            const langResponse = await fetch(langUrl, { headers: headers });
+
+            if (!langResponse.ok) {
+                console.warn(`Não foi possível buscar linguagens para o repositório ${repo.name}: ${langResponse.statusText}`);
+                return;
+            }
+            const langsData = await langResponse.json();
+
+            for (const lang in langsData) {
+                if (langsData.hasOwnProperty(lang)) {
+                    languageBytes[lang] = (languageBytes[lang] || 0) + langsData[lang];
+                    totalBytes += langsData[lang];
+                }
+            }
+        });
+
+        await Promise.all(languageRequests);
+
+        const languagePercentages = {};
+        for (const lang in languageBytes) {
+            if (languageBytes.hasOwnProperty(lang) && totalBytes > 0) {
+                languagePercentages[lang] = (languageBytes[lang] / totalBytes) * 100;
+            }
+        }
+
+        const sortedLanguages = Object.entries(languagePercentages)
+            .sort(([,a], [,b]) => b - a);
+        
+        const MAX_RADAR_POINTS = 5;
+        let finalLabels = [];
+        let finalData = [];
+
+        if (sortedLanguages.length === 0) {
+            for (let i = 0; i < MAX_RADAR_POINTS; i++) {
+                finalLabels.push(`Linguagem ${i + 1}`);
+                finalData.push(0);
+            }
+        } else {
+            for (let i = 0; i < sortedLanguages.length; i++) {
+                if (i < MAX_RADAR_POINTS) {
+                    finalLabels.push(sortedLanguages[i][0]);
+                    finalData.push(sortedLanguages[i][1]);
+                }
+            }
+            while (finalLabels.length < MAX_RADAR_POINTS) {
+                finalLabels.push(`Linguagem ${finalLabels.length + 1}`);
+                finalData.push(0);
+            }
+        }
+
+        const maxDataValue = Math.max(...finalData);
+        const dynamicSuggestedMax = Math.max(20, maxDataValue + (maxDataValue * 0.1));
+
+        // --- 2. GERAÇÃO DA IMAGEM USANDO PUPPETEER ---
+
+        // Inicia o navegador headless (Chromium)
+        browser = await puppeteer.launch({
+            executablePath: CHROME_EXECUTABLE_PATH, // Caminho para o Chromium
+            args: ['--no-sandbox', '--disable-setuid-sandbox'], // Argumentos necessários para ambientes serverless
+            headless: true // Garante que o navegador não abra uma janela visível
+        });
+
+        // Abre uma nova página no navegador
+        const page = await browser.newPage();
+        // Define o tamanho da viewport da página para corresponder ao tamanho desejado da imagem
+        await page.setViewport({ width: 500, height: 500, deviceScaleFactor: 1 });
+
+        // Lê o conteúdo do seu chart-template.html
+        const htmlContent = await fs.readFile(path.join(process.cwd(), 'public', 'chart-template.html'), 'utf8');
+        // Define o conteúdo HTML da página
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' }); // Espera a rede ficar inativa
+
+        // Injeta os dados no JavaScript da página e chama a função drawChart
+        await page.evaluate((username, labels, data, maxDataValue) => {
+            // A função drawChart deve estar definida no chart-template.html
+            // e acessível globalmente (ex: window.drawChart)
+            if (typeof drawChart === 'function') {
+                drawChart(username, labels, data, maxDataValue);
+            } else {
+                console.error('drawChart function not found on page.');
+            }
+        }, username, finalLabels, finalData, dynamicSuggestedMax);
+
+        // Espera um pouco para o gráfico renderizar completamente
+        await new Promise(resolve => setTimeout(resolve, 500)); // Aumentado para 500ms para garantir renderização
+
+        // Tira um screenshot do elemento canvas
+        const canvasElement = await page.$('#linguagensRadar');
+        if (!canvasElement) {
+            throw new Error('Elemento canvas não encontrado na página.');
+        }
+        const imageBuffer = await canvasElement.screenshot({ type: 'png' });
+
+        // Envia a imagem como resposta
+        res.status(200).send(imageBuffer);
+
+    } catch (error) {
+        console.error('Erro na função serverless:', error);
+        // Em caso de erro, você pode enviar uma imagem de erro padrão
+        // ou uma mensagem de texto simples.
+        res.status(500).send(`Erro ao gerar o gráfico: ${error.message}`);
+    } finally {
+        // Garante que o navegador seja fechado para liberar recursos
+        if (browser) {
+            await browser.close();
+        }
+    }
+};
