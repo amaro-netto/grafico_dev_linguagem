@@ -139,7 +139,7 @@
         <h1>Minhas Linguagens GitHub</h1>
         <input type="text" id="github-username" placeholder="Digite seu nome de usuário do GitHub">
         <button onclick="getGitHubLanguages()">Gerar Gráfico</button>
-        <p id="loading-message">Carregando dados... Isso pode demorar para muitos repositórios e usar o limite da API.</p>
+        <p id="loading-message">Carregando dados... Isso pode demorar para muitos repositórios e usar o limite da API. **Considere usar um Personal Access Token para evitar limites.**</p>
         <p id="error-message"></p>
         <canvas id="linguagensRadar"></canvas>
 
@@ -158,14 +158,17 @@
         <button onclick="copyMarkdown()">Copiar Código</button>
     </div>
 
+    <!-- O script JavaScript é colocado aqui, antes do fechamento do </body>,
+         para garantir que todos os elementos HTML e bibliotecas externas (Chart.js)
+         já foram carregados e estejam disponíveis. -->
     <script>
         // Variável global para armazenar a instância do gráfico Chart.js
         let meuGraficoRadar = null;
 
         // Opcional: Se você tiver um Personal Access Token (PAT) do GitHub,
-        // pode colá-lo aqui para aumentar o limite de requisições da API.
+        // cole-o aqui para aumentar o limite de requisições da API.
         // AVISO: NÃO FAÇA ISSO EM PROJETOS PÚBLICOS OU DE PRODUÇÃO SEM UM BACKEND SEGURO!
-        // const GITHUB_PAT = 'SEU_TOKEN_AQUI'; // Ex: ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        const GITHUB_PAT = ''; // <--- COLOQUE SEU PERSONAL ACCESS TOKEN AQUI (ex: 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
 
         /**
          * Função para obter um parâmetro da URL.
@@ -213,9 +216,10 @@
             try {
                 // Configura os cabeçalhos para incluir o PAT, se definido
                 const headers = {};
-                // if (typeof GITHUB_PAT !== 'undefined' && GITHUB_PAT) {
-                //     headers['Authorization'] = `token ${GITHUB_PAT}`;
-                // }
+                // Verifica se GITHUB_PAT está definido e não vazio
+                if (typeof GITHUB_PAT !== 'undefined' && GITHUB_PAT.length > 0) { 
+                    headers['Authorization'] = `token ${GITHUB_PAT}`;
+                }
 
                 // 1. Busca os repositórios do usuário
                 // per_page=100 busca até 100 repositórios por página (padrão é 30)
@@ -333,11 +337,15 @@
                 // Obtém o contexto 2D do elemento canvas
                 const ctx = document.getElementById('linguagensRadar').getContext('2d');
 
-                // Calcula o valor máximo dinâmico para a escala do radar
-                const maxDataValue = Math.max(...finalData);
-                // Garante que o suggestedMax seja pelo menos 20 (para gráficos com valores muito baixos)
-                // e adiciona um buffer de 10% ao maior valor para melhor visualização
-                const dynamicSuggestedMax = Math.max(20, maxDataValue + (maxDataValue * 0.1));
+                // MODIFICAÇÃO: Aplicando a transformação de raiz quadrada nos dados para melhor visualização
+                const transformedData = finalData.map(value => Math.sqrt(value));
+
+                // Calcula o valor máximo dinâmico para a escala do radar com base nos dados TRANSFORMADOS
+                const maxTransformedDataValue = Math.max(...transformedData);
+                // Garante que o suggestedMax seja pelo menos sqrt(20) = ~4.47 (para gráficos com valores muito baixos)
+                // e adiciona um buffer de 10% ao maior valor transformado para melhor visualização
+                const dynamicSuggestedMax = Math.max(Math.sqrt(20), maxTransformedDataValue + (maxTransformedDataValue * 0.1));
+
 
                 // Cria uma nova instância do gráfico Chart.js
                 meuGraficoRadar = new Chart(ctx, {
@@ -346,7 +354,7 @@
                         labels: finalLabels, // Rótulos dos eixos (nomes das linguagens)
                         datasets: [{
                             label: '', // Rótulo vazio para a legenda
-                            data: finalData, // Valores para cada eixo
+                            data: transformedData, // MODIFICADO: Usando os dados TRANSFORMADOS
                             // Cores de fundo para os segmentos do gráfico
                             backgroundColor: [
                                 'rgba(255, 99, 132, 0.6)', // Vermelho
@@ -381,9 +389,12 @@
                                     display: false // Oculta as linhas que irradiam do centro
                                 },
                                 suggestedMin: 0, // Valor mínimo da escala
-                                suggestedMax: dynamicSuggestedMax, // Valor máximo da escala (dinâmico)
+                                suggestedMax: dynamicSuggestedMax, // MODIFICADO: Valor máximo da escala (dinâmico com base nos dados transformados)
                                 ticks: {
-                                    display: false, // Oculta os números da escala radial (0, 10, 20...)
+                                    display: false, // MODIFICADO: Oculta os números da escala radial (0, 10, 20...)
+                                    // callback: function(value) { // Opcional: para mostrar a porcentagem original na escala
+                                    //     return (value * value).toFixed(0) + '%';
+                                    // }
                                 },
                                 pointLabels: {
                                     font: {
