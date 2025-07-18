@@ -1,7 +1,7 @@
 // api/generate-chart.js
 
 // Importa as bibliotecas necessárias
-const fetch = require('node-fetch'); 
+const fetch = require('node-fetch');
 
 // Função principal da sua função serverless
 module.exports = async (req, res) => {
@@ -78,7 +78,7 @@ module.exports = async (req, res) => {
 
         const sortedLanguages = Object.entries(languagePercentages)
             .sort(([,a], [,b]) => b - a);
-        
+
         const MAX_RADAR_POINTS = 5;
         let finalLabels = [];
         let finalData = [];
@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
                 finalData.push(0);
             }
         }
-        
+
         console.log('Dados processados para o gráfico. Construindo URL do QuickChart.io...');
 
         // Configuração do gráfico para o QuickChart.io
@@ -110,8 +110,8 @@ module.exports = async (req, res) => {
             data: {
                 labels: finalLabels,
                 datasets: [{
-                    label: '', 
-                    data: finalData, 
+                    label: '',
+                    data: finalData,
                     backgroundColor: [
                         'rgba(60, 186, 159, 0.6)', // Verde
                         'rgba(90, 155, 212, 0.6)', // Azul
@@ -130,9 +130,9 @@ module.exports = async (req, res) => {
                 }]
             },
             options: {
-                plugins: {
+                plugins: { // 'plugins' é o contêiner correto para 'legend' e 'title'
                     legend: {
-                        [cite_start]display: false // Esta linha remove a legenda [cite: 73, 118]
+                        display: false // Esta linha remove a legenda
                     },
                     title: {
                         display: true,
@@ -160,7 +160,7 @@ module.exports = async (req, res) => {
                     }
                 },
                 layout: {
-                    padding: 20 
+                    padding: 20
                 }
             }
         };
