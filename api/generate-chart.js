@@ -4,23 +4,20 @@ const fetch = require('node-fetch'); // Para fazer requisições HTTP (API GitHu
 // Função principal da sua função serverless
 module.exports = async (req, res) => {
     console.log('Iniciando a função generate-chart com QuickChart.io...');
-    res.setHeader('Content-Type', 'image/png');
-    // Define cabeçalhos de cache para que a imagem seja atualizada a cada hora
+    // O Content-Type será JSON, pois a função retorna um objeto com a imagem e as tags.
+    res.setHeader('Content-Type', 'application/json'); 
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate');
 
-    // Obtém o nome de usuário da query string da URL (ex: ?username=amaro-netto)
     const username = req.query.username;
 
     if (!username) {
         console.error('Erro: Nome de usuário do GitHub não fornecido na URL.');
-        // Em caso de erro, você pode retornar uma imagem de erro padrão se desejar
-        return res.status(400).send('Erro: Nome de usuário do GitHub não fornecido.');
+        return res.status(400).send(JSON.stringify({ error: 'Erro: Nome de usuário do GitHub não fornecido.' }));
     }
 
     try {
         console.log(`Buscando dados do GitHub para o usuário: ${username}`);
         const headers = {};
-        // Usa o PAT da variável de ambiente do Vercel, se existir
         if (process.env.GITHUB_PAT) {
             headers['Authorization'] = `token ${process.env.GITHUB_PAT}`;
             console.log('Usando Personal Access Token para autenticação da API GitHub.');
@@ -31,17 +28,14 @@ module.exports = async (req, res) => {
         const reposResponse = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`, { headers: headers });
 
         if (!reposResponse.ok) {
+            let errorMessage = `Erro ao buscar repositórios: ${reposResponse.statusText}`;
             if (reposResponse.status === 404) {
-                console.error(`Erro 404: Usuário do GitHub "${username}" não encontrado.`);
-                return res.status(404).send('Erro: Usuário do GitHub não encontrado.');
+                errorMessage = `Erro: Usuário do GitHub "${username}" não encontrado.`;
+            } else if (reposResponse.status === 403 && reposResponse.headers.get('X-RateLimit-Remaining') === '0') {
+                errorMessage = 'Erro: Limite de requisições da API do GitHub excedido. Tente novamente mais tarde ou use um Personal Access Token válido.';
             }
-            if (reposResponse.status === 403 && reposResponse.headers.get('X-RateLimit-Remaining') === '0') {
-                console.error('Erro 403: Limite de requisições da API do GitHub excedido. Use um PAT ou espere.');
-                return res.status(429).send('Erro: Limite de requisições da API do GitHub excedido. Tente novamente mais tarde ou use um Personal Access Token válido.');
-            }
-            const errorText = await reposResponse.text();
-            console.error(`Erro ao buscar repositórios: Status ${reposResponse.status}, Texto: ${errorText}`);
-            throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
+            console.error(errorMessage);
+            return res.status(reposResponse.status).send(JSON.stringify({ error: errorMessage }));
         }
 
         const repos = await reposResponse.json();
@@ -87,7 +81,6 @@ module.exports = async (req, res) => {
         let otherLanguages = []; // Para armazenar as linguagens que não estão no top 5
 
         if (sortedLanguages.length === 0) {
-            // Se não houver linguagens, preenche com dados padrão para não quebrar o gráfico
             for (let i = 0; i < MAX_RADAR_POINTS; i++) {
                 finalLabels.push(`Linguagem ${i + 1}`);
                 finalData.push(0);
@@ -99,24 +92,20 @@ module.exports = async (req, res) => {
                     finalLabels.push(sortedLanguages[i][0]);
                     finalData.push(sortedLanguages[i][1]);
                 } else {
-                    otherLanguages.push(sortedLanguages[i][0]); // Adiciona o nome da linguagem às outras
+                    otherLanguages.push(sortedLanguages[i][0]);
                 }
             }
-            // Garante que sempre haja 5 pontos, mesmo que menos linguagens sejam encontradas
             while (finalLabels.length < MAX_RADAR_POINTS) {
                 finalLabels.push(`Linguagem ${finalLabels.length + 1}`);
                 finalData.push(0);
             }
         }
 
-        // Aplicando a transformação de raiz quadrada nos dados para melhor visualização
         const transformedData = finalData.map(value => Math.sqrt(value));
-        // Calcula o suggestedMax dinamicamente com base nos dados transformados
         const dynamicSuggestedMax = Math.max(Math.sqrt(20), Math.max(...transformedData) + (Math.max(...transformedData) * 0.1));
 
         console.log('Dados processados para o gráfico. Gerando imagem via QuickChart.io...');
 
-        // Configuração do gráfico Chart.js para o QuickChart.io
         const chartConfig = {
             type: 'radar',
             data: {
@@ -154,7 +143,7 @@ module.exports = async (req, res) => {
                 responsive: true,
                 maintainAspectRatio: true,
                 aspectRatio: 1,
-                backgroundColor: '#FFFFFF', // Define o fundo do gráfico como branco
+                backgroundColor: '#FFFFFF', // Fundo do gráfico branco sólido
                 layout: {
                     padding: {
                         left: 10,
@@ -226,10 +215,9 @@ module.exports = async (req, res) => {
         };
 
         // Constrói a URL da API do QuickChart.io
-        // REMOVIDO: backgroundColor=transparent da URL para garantir fundo branco sólido
-        const quickChartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&width=500&height=500`;
+        // Não usamos backgroundColor=transparent aqui, pois o backgroundColor já está no chartConfig
+        const quickChartUrl = `https://quickchart.io.chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&width=500&height=500`;
 
-        // Faz a requisição para o QuickChart.io para obter a imagem
         const chartResponse = await fetch(quickChartUrl);
 
         if (!chartResponse.ok) {
@@ -238,22 +226,18 @@ module.exports = async (req, res) => {
             throw new Error(`Erro ao gerar imagem do gráfico: ${chartResponse.statusText}`);
         }
 
-        // Obtém o buffer da imagem
         const imageBuffer = await chartResponse.buffer();
         console.log('Imagem do QuickChart.io recebida com sucesso.');
 
-        // Envia a imagem como resposta da função serverless
-        // Para incluir as outras linguagens, precisamos mudar o Content-Type para JSON
-        // e enviar um objeto contendo a imagem (Base64) e as outras linguagens.
-        res.setHeader('Content-Type', 'application/json'); // <-- MUDANÇA AQUI
+        // Envia a imagem como resposta da função serverless em formato JSON
         res.status(200).send(JSON.stringify({
             imageData: `data:image/png;base64,${imageBuffer.toString('base64')}`,
-            otherLanguages: otherLanguages // Inclui as outras linguagens
+            otherLanguages: otherLanguages
         }));
         console.log('Dados do gráfico e outras linguagens enviados com sucesso.');
 
     } catch (error) {
         console.error('Erro GERAL na função serverless:', error);
-        res.status(500).send(`Erro interno ao gerar o gráfico: ${error.message}. Verifique os logs do Vercel.`);
+        res.status(500).send(JSON.stringify({ error: `Erro interno ao gerar o gráfico: ${error.message}. Verifique os logs do Vercel.` }));
     }
 };
