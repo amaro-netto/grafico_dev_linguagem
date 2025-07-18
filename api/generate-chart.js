@@ -123,8 +123,21 @@ module.exports = async (req, res) => {
         // Adicionando mais argumentos para compatibilidade com ambientes serverless
         browser = await puppeteer.launch({
             executablePath: await chromium.executablePath(),
-            // Adicionando --single-process e garantindo que headless seja true
-            args: [...chromium.args, '--disable-gpu', '--disable-setuid-sandbox', '--no-sandbox', '--disable-dev-shm-usage', '--single-process'], 
+            // Adicionando argumentos extras para tentar resolver o problema de carregamento de bibliotecas
+            args: [
+                ...chromium.args,
+                '--disable-gpu',
+                '--disable-setuid-sandbox',
+                '--no-sandbox',
+                '--disable-dev-shm-usage',
+                '--single-process', // Pode ajudar em ambientes com poucos recursos
+                '--disable-features=site-per-process', // Às vezes ajuda com problemas de memória/recursos
+                '--disable-web-security', // Pode ser necessário em ambientes muito restritivos (cuidado em outros contextos)
+                '--disable-sync',
+                '--disable-background-networking',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+            ], 
             headless: true, // Explicitamente definindo como true
             defaultViewport: chromium.defaultViewport
         });
