@@ -7,10 +7,10 @@
     "start": "node api/generate-chart.js"
   },
   "dependencies": {
-    "node-fetch": "^2.6.1"
+    "node-fetch": "^2.6.1",
+    "quickchart-js": "^2.0.0"
   },
-  "devDependencies": {
-  },
+  "devDependencies": {},
   "engines": {
     "node": "18.x"
   }

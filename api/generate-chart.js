@@ -2,10 +2,11 @@
 
 // Importa as bibliotecas necessárias
 const fetch = require('node-fetch');
+const QuickChart = require('quickchart-js'); // Importar o SDK QuickChart.js
 
 // Função principal da sua função serverless
 module.exports = async (req, res) => {
-    console.log('Iniciando a função generate-chart com QuickChart.io...');
+    console.log('Iniciando a função generate-chart com QuickChart.io SDK...'); // Log atualizado
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate');
 
@@ -102,15 +103,21 @@ module.exports = async (req, res) => {
             }
         }
 
-        console.log('Dados processados para o gráfico. Construindo URL do QuickChart.io...');
+        console.log('Dados processados para o gráfico. Gerando imagem com quickchart-js SDK...');
 
-        // Configuração do gráfico para o QuickChart.io
-        const chartConfig = {
+        // **USANDO quickchart-js SDK AQUI**
+        const chart = new QuickChart();
+        chart.setWidth(500);
+        chart.setHeight(500);
+        chart.setBackgroundColor('white'); // Define o fundo para branco
+        chart.setVersion('2.9.4'); // Ou a versão mais recente/estável do Chart.js que QuickChart.io suporta (pode ser 3 ou 4)
+
+        chart.setConfig({
             type: 'radar',
             data: {
                 labels: finalLabels,
                 datasets: [{
-                    label: '',
+                    label: '', // Deixe vazio para não aparecer na legenda (se ela estiver visível por algum motivo)
                     data: finalData,
                     backgroundColor: [
                         'rgba(60, 186, 159, 0.6)', // Verde
@@ -130,15 +137,16 @@ module.exports = async (req, res) => {
                 }]
             },
             options: {
-                plugins: { // 'plugins' é o contêiner correto para 'legend' e 'title'
+                plugins: { // Esta é a estrutura correta para Chart.js v3+
                     legend: {
-                        display: false // Esta linha remove a legenda
+                        display: false // REMOVE A LEGENDA
                     },
                     title: {
                         display: true,
                         text: `Top 5 Linguagens por Bytes de Código de ${username}`,
                         font: {
-                            size: 18
+                            size: 18,
+                            color: '#333' // Cor do título, para garantir visibilidade
                         }
                     }
                 },
@@ -154,8 +162,12 @@ module.exports = async (req, res) => {
                         pointLabels: {
                             font: {
                                 size: 14,
-                                weight: 'bold'
+                                weight: 'bold',
+                                color: '#333' // Cor dos rótulos dos pontos (linguagens), para garantir visibilidade
                             }
+                        },
+                        grid: { // Adiciona linhas da grade para contraste
+                            color: 'rgba(200, 200, 200, 0.5)'
                         }
                     }
                 },
@@ -163,22 +175,12 @@ module.exports = async (req, res) => {
                     padding: 20
                 }
             }
-        };
+        });
 
-        const chartConfigEncoded = encodeURIComponent(JSON.stringify(chartConfig));
-        const quickChartUrl = `https://quickchart.io/chart?c=${chartConfigEncoded}&width=500&height=500&format=png&bkg=white`;
+        // Obter a imagem binária diretamente do SDK
+        const imageBuffer = await chart.toBinary(); // Este método busca a imagem
 
-        console.log('Solicitando imagem do QuickChart.io...');
-        const chartResponse = await fetch(quickChartUrl);
-
-        if (!chartResponse.ok) {
-            const errorText = await chartResponse.text();
-            console.error(`Erro ao obter gráfico do QuickChart.io: Status ${chartResponse.status}, Texto: ${errorText}`);
-            throw new Error(`Erro ao gerar gráfico externo: ${chartResponse.statusText}`);
-        }
-
-        const imageBuffer = await chartResponse.buffer();
-        console.log('Imagem do QuickChart.io recebida com sucesso.');
+        console.log('Imagem do QuickChart.io recebida com sucesso via SDK.');
 
         res.status(200).send(imageBuffer);
         console.log('Imagem enviada com sucesso.');
