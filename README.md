@@ -5,7 +5,7 @@
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
 ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
 ![Chart.js](https://img.shields.io/badge/Chart.js-FF6384?style=for-the-badge&logo=chartdotjs&logoColor=white)
-![Puppeteer](https://img.shields.io/badge/Puppeteer-40B5A4?style=for-the-badge&logo=puppeteer&logoColor=white)
+![quickchart-js](https://img.shields.io/badge/quickchart.js-007ACC?style=for-the-badge&logo=javascript&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
 
 ## Gráfico
@@ -42,7 +42,7 @@ O projeto é dividido em duas partes principais para oferecer a melhor experiên
 
     * Para ter uma imagem do gráfico que se atualiza automaticamente no seu `README.md` (como os troféus do GitHub), é necessário um pequeno servidor (função serverless) rodando em plataformas como **Vercel** ou **Netlify Functions**.
 
-    * Este servidor utiliza **Node.js** com bibliotecas como **Puppeteer** para carregar um template HTML com o Chart.js, injetar os dados do GitHub (buscados no servidor), tirar um screenshot do gráfico e retornar a imagem diretamente.
+    * Este servidor utiliza **Node.js** com bibliotecas como **quickchart-js** para gerar o gráfico, injetar os dados do GitHub (buscados no servidor), e retornar a imagem diretamente.
 
     * Dessa forma, o código Markdown no seu `README.md` será um link simples para essa função serverless, e a imagem será sempre atualizada.
 
@@ -60,7 +60,7 @@ O projeto é dividido em duas partes principais para oferecer a melhor experiên
 
 * **Node.js:** (Para a função serverless de geração de imagem dinâmica)
 
-* **Puppeteer/Puppeteer-core:** (Para a função serverless, para renderizar o gráfico em um navegador headless e tirar screenshot)
+* **quickchart-js:** (Para a função serverless, para gerar o gráfico dinamicamente)
 
 ## ✨ Inspiração
 
