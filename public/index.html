@@ -84,7 +84,7 @@
             display: none;
             word-break: break-word;
         }
-
+        
         #error-message {
             color: red;
         }
@@ -143,7 +143,6 @@
         <p id="loading-message">Gerando gráfico dinâmico...</p>
         <p id="error-message"></p>
         <img id="linguagensRadarImage" alt="Gráfico de Linguagens GitHub">
-
         <div id="other-languages-output">
         </div>
     </div>
@@ -173,10 +172,8 @@
         }
 
         /**
-         * Função principal para gerar a URL da imagem do gráfico e exibi-la.
-         * Esta função NÃO faz requisições diretas à API do GitHub.
-         * Ela apenas constrói a URL para a função serverless do Vercel.
-         * @param {string|null} usernameFromParam - Nome de usuário passado via parâmetro de URL, se houver.
+         * Função principal para gerar o gráfico e as tags de linguagens.
+         * Esta função agora busca os dados diretamente da API do GitHub.
          */
         async function getGitHubLanguages(usernameFromParam = null) {
             const usernameInput = document.getElementById('github-username');
@@ -189,6 +186,7 @@
             const linguagensRadarImage = document.getElementById('linguagensRadarImage');
             const otherLanguagesOutput = document.getElementById('other-languages-output');
 
+            // Resetar estados anteriores
             errorMessage.style.display = 'none';
             errorMessage.textContent = '';
             markdownOutput.style.display = 'none';
@@ -206,19 +204,100 @@
             loadingMessage.style.display = 'block';
 
             try {
-                // Constrói a URL para a sua função serverless do Vercel
-                // Esta URL irá agora bater na sua API que usa QuickChart.io
-                const imageUrl = `${VERCEL_PROJECT_URL}/api/generate-chart?username=${username}`;
+                // --- 1. Buscar dados dos repositórios do GitHub ---
+                const reposResponse = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`);
+                if (!reposResponse.ok) {
+                    if (reposResponse.status === 404) {
+                        throw new Error(`Usuário do GitHub "${username}" não encontrado.`);
+                    }
+                    if (reposResponse.status === 403) {
+                        throw new Error('Limite de requisições da API do GitHub excedido. Tente novamente mais tarde.');
+                    }
+                    throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
+                }
+                const repos = await reposResponse.json();
 
-                // Define o src da imagem para carregar o gráfico da função serverless
+                const languageBytes = {};
+                let totalBytes = 0;
+
+                const languageRequests = repos.map(async (repo) => {
+                    // Se o repositório for um fork e não tiver linguagens, pule
+                    if (repo.fork && repo.size === 0) {
+                        return;
+                    }
+
+                    const langUrl = repo.languages_url;
+                    const langResponse = await fetch(langUrl);
+
+                    if (!langResponse.ok) {
+                        console.warn(`Não foi possível buscar linguagens para o repositório ${repo.name}: ${langResponse.statusText}`);
+                        return;
+                    }
+                    const langsData = await langResponse.json();
+
+                    for (const lang in langsData) {
+                        if (langsData.hasOwnProperty(lang)) {
+                            languageBytes[lang] = (languageBytes[lang] || 0) + langsData[lang];
+                            totalBytes += langsData[lang];
+                        }
+                    }
+                });
+
+                await Promise.all(languageRequests);
+
+                if (totalBytes === 0 && Object.keys(languageBytes).length === 0) {
+                    errorMessage.textContent = `Nenhum repositório público com código detectável encontrado para o usuário "${username}".`;
+                    errorMessage.style.display = 'block';
+                    loadingMessage.style.display = 'none';
+                    return;
+                }
+
+                const languagePercentages = {};
+                for (const lang in languageBytes) {
+                    if (languageBytes.hasOwnProperty(lang) && totalBytes > 0) {
+                        languagePercentages[lang] = (languageBytes[lang] / totalBytes) * 100;
+                    }
+                }
+
+                const sortedLanguages = Object.entries(languagePercentages)
+                    .sort(([, a], [, b]) => b - a);
+
+                const MAX_RADAR_POINTS = 5;
+                let finalLabels = [];
+                let finalData = [];
+                let otherLanguages = [];
+
+                if (sortedLanguages.length === 0) {
+                    for (let i = 0; i < MAX_RADAR_POINTS; i++) {
+                        finalLabels.push(`Linguagem ${i + 1}`);
+                        finalData.push(0);
+                    }
+                } else {
+                    for (let i = 0; i < sortedLanguages.length; i++) {
+                        if (i < MAX_RADAR_POINTS) {
+                            finalLabels.push(sortedLanguages[i][0]);
+                            finalData.push(sortedLanguages[i][1]);
+                        } else {
+                            otherLanguages.push(sortedLanguages[i][0]);
+                        }
+                    }
+                    // Preencher com 'Linguagem X' e 0% se houver menos de MAX_RADAR_POINTS linguagens
+                    while (finalLabels.length < MAX_RADAR_POINTS) {
+                        finalLabels.push(`Linguagem ${finalLabels.length + 1}`);
+                        finalData.push(0);
+                    }
+                }
+
+                // --- 2. Gerar e exibir o gráfico (chamando a função serverless) ---
+                const imageUrl = `${VERCEL_PROJECT_URL}/api/generate-chart?username=${username}`; // A URL para sua função serverless
+
                 linguagensRadarImage.src = imageUrl;
                 linguagensRadarImage.alt = `Gráfico de Linguagens GitHub para ${username}`;
 
-                // Adiciona um listener para quando a imagem carregar (ou falhar)
                 linguagensRadarImage.onload = () => {
                     loadingMessage.style.display = 'none';
                     linguagensRadarImage.style.display = 'block'; 
-                    otherLanguagesOutput.style.display = 'none';
+                    // otherLanguagesOutput será exibido abaixo, não escondido aqui
                 };
 
                 linguagensRadarImage.onerror = () => {
@@ -228,15 +307,26 @@
                     linguagensRadarImage.style.display = 'none';
                 };
 
-                // Geração do Código Markdown (agora muito mais curto!)
+
+                // --- 3. Exibir as tags de outras linguagens ---
+                if (otherLanguages.length > 0) {
+                    otherLanguagesOutput.innerHTML = 'Outras linguagens detectadas: ' +
+                        otherLanguages.map(lang => `<span>${lang}</span>`).join('');
+                    otherLanguagesOutput.style.display = 'block';
+                } else {
+                    otherLanguagesOutput.style.display = 'none';
+                }
+
+                // --- 4. Gerar o Código Markdown ---
                 const markdownCodeContent = `![Gráfico de Linguagens GitHub para ${username}](${imageUrl})`;
                 markdownCode.value = markdownCodeContent;
                 markdownOutput.style.display = 'block';
 
             } catch (error) {
-                console.error('Erro ao gerar URL do gráfico:', error);
-                errorMessage.textContent = `Erro: ${error.message}.`;
+                console.error('Erro ao gerar gráfico ou buscar dados:', error);
+                errorMessage.textContent = `Erro: ${error.message}`;
                 errorMessage.style.display = 'block';
+                loadingMessage.style.display = 'none';
             } finally {
                 // A mensagem de loading é escondida no onload/onerror da imagem
             }
@@ -248,7 +338,7 @@
         function copyMarkdown() {
             const markdownCode = document.getElementById('markdown-code');
             markdownCode.select();
-            markdownCode.setSelectionRange(0, 99999);
+            markdownCode.setSelectionRange(0, 99999); // Para celulares
             document.execCommand('copy');
             alert('Código Markdown copiado para a área de transferência!');
         }
