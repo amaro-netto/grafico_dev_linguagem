@@ -152,9 +152,9 @@
     <div id="markdown-output">
         <h3>Código Markdown para seu README.md:</h3>
         <p class="base64-warning">
-            Atenção: Este código Markdown incorpora a imagem diretamente (Base64). Isso pode tornar seu README.md muito grande e afetar a performance de carregamento. Para melhor performance, considere hospedar a imagem externamente.
+            **Atenção:** Para que o gráfico seja atualizado automaticamente no seu README.md, você precisa ter sua função serverless implantada no Vercel. A URL abaixo aponta para essa função.
         </p>
-        <textarea id="markdown-code" rows="8" cols="50" readonly></textarea>
+        <textarea id="markdown-code" rows="4" cols="50" readonly></textarea> <!-- Linhas reduzidas -->
         <button onclick="copyMarkdown()">Copiar Código</button>
     </div>
 
@@ -169,6 +169,10 @@
         // cole-o aqui para aumentar o limite de requisições da API.
         // AVISO: NÃO FAÇA ISSO EM PROJETOS PÚBLICOS OU DE PRODUÇÃO SEM UM BACKEND SEGURO!
         const GITHUB_PAT = ''; // <--- COLOQUE SEU PERSONAL ACCESS TOKEN AQUI (ex: 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
+
+        // IMPORTANTE: COLOQUE A URL DO SEU PROJETO IMPLANTADO NO VERCEL AQUI
+        // Exemplo: 'https://seu-projeto-vercel.vercel.app'
+        const VERCEL_PROJECT_URL = 'https://grafdev.vercel.app'; // <--- SUBSTITUÍDO PELA SUA URL REAL DO VERCEL
 
         /**
          * Função para obter um parâmetro da URL.
@@ -436,18 +440,19 @@
                 // --- FIM DA LÓGICA DE OUTRAS LINGUAGENS ---
 
 
-                // Geração do Código Markdown para o README.md
-                // Espera um pequeno momento para o Chart.js renderizar completamente
-                await new Promise(resolve => setTimeout(resolve, 100)); 
-                const canvas = document.getElementById('linguagensRadar');
-                const imageDataURL = canvas.toDataURL('image/png'); // Converte o canvas em uma imagem PNG Base64
-
-                // Cria o código Markdown com a imagem Base64
-                const markdownImageCode = `![Gráfico de Linguagens GitHub para ${username}](data:image/png;base64,${imageDataURL.split(',')[1]})`;
-                
-                // Preenche a área de texto e exibe o contêiner Markdown
-                markdownCode.value = markdownImageCode;
-                markdownOutput.style.display = 'block';
+                // MODIFICAÇÃO: Geração do Código Markdown com a URL da função Serverless
+                // Certifique-se de que VERCEL_PROJECT_URL está configurada corretamente no topo do script
+                if (VERCEL_PROJECT_URL === 'https://SEU_PROJETO_VERCEL.vercel.app') {
+                    // Aviso se o usuário não configurou a URL do Vercel
+                    markdownCode.value = "ATENÇÃO: Por favor, configure a 'VERCEL_PROJECT_URL' no código JavaScript com a URL real do seu projeto Vercel para gerar o código Markdown correto.";
+                    markdownOutput.style.display = 'block';
+                } else {
+                    const markdownImageUrl = `${VERCEL_PROJECT_URL}/api/generate-chart?username=${username}`;
+                    const markdownCodeContent = `![Gráfico de Linguagens GitHub para ${username}](${markdownImageUrl})`;
+                    
+                    markdownCode.value = markdownCodeContent;
+                    markdownOutput.style.display = 'block';
+                }
 
             } catch (error) {
                 // Captura e exibe erros durante o processo
