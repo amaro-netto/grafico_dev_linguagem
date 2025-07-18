@@ -122,9 +122,10 @@ module.exports = async (req, res) => {
         // Adicionando 'await' para garantir que executablePath seja resolvido antes de passar para launch
         // Adicionando mais argumentos para compatibilidade com ambientes serverless
         browser = await puppeteer.launch({
-            executablePath: await chromium.executablePath(), // <--- CORREÇÃO AQUI
-            args: [...chromium.args, '--disable-gpu', '--disable-setuid-sandbox', '--no-sandbox', '--disable-dev-shm-usage'], // Adicionando args extras
-            headless: chromium.headless,
+            executablePath: await chromium.executablePath(),
+            // Adicionando --single-process e garantindo que headless seja true
+            args: [...chromium.args, '--disable-gpu', '--disable-setuid-sandbox', '--no-sandbox', '--disable-dev-shm-usage', '--single-process'], 
+            headless: true, // Explicitamente definindo como true
             defaultViewport: chromium.defaultViewport
         });
         console.log('Navegador Puppeteer iniciado.');
