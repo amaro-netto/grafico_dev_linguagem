@@ -119,23 +119,24 @@ module.exports = async (req, res) => {
             data: {
                 labels: finalLabels,
                 datasets: [{
-                    label: '',
+                    label: '', // Rótulo vazio para não aparecer na legenda
                     data: transformedData,
+                    // Novas cores mais vibrantes e distintas
                     backgroundColor: [
-                        'rgba(255, 99, 132, 0.6)',
-                        'rgba(54, 162, 235, 0.6)',
-                        'rgba(255, 206, 86, 0.6)',
-                        'rgba(75, 192, 192, 0.6)',
-                        'rgba(153, 102, 255, 0.6)'
+                        'rgba(75, 192, 192, 0.7)', // Teal
+                        'rgba(255, 159, 64, 0.7)', // Laranja
+                        'rgba(153, 102, 255, 0.7)', // Roxo
+                        'rgba(255, 99, 132, 0.7)', // Vermelho
+                        'rgba(54, 162, 235, 0.7)'  // Azul
                     ],
                     borderColor: [
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 206, 86, 1)',
                         'rgba(75, 192, 192, 1)',
-                        'rgba(153, 102, 255, 1)'
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)'
                     ],
-                    borderWidth: 1
+                    borderWidth: 2 // Aumenta a largura da borda para destaque
                 }]
             },
             options: {
@@ -161,19 +162,21 @@ module.exports = async (req, res) => {
                             font: {
                                 size: 14,
                                 weight: 'bold'
-                            }
+                            },
+                            color: '#333' // Cor mais escura para os rótulos das linguagens
                         }
                     }
                 },
                 plugins: {
                     legend: {
-                        display: false,
+                        display: false, // Desativa a exibição da legenda (a barra de cor)
                     },
                     title: {
                         display: true,
                         text: `Top 5 Linguagens por Bytes de Código de ${username}`,
                         font: {
-                            size: 18
+                            size: 18,
+                            color: '#333' // Cor mais escura para o título
                         }
                     }
                 }
