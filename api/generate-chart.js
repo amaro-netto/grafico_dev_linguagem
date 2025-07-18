@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
                 finalData.push(0);
             }
         }
-
+        
         console.log('Dados processados para o gráfico. Construindo URL do QuickChart.io...');
 
         // Configuração do gráfico para o QuickChart.io
@@ -132,7 +132,7 @@ module.exports = async (req, res) => {
             options: {
                 plugins: {
                     legend: {
-                        display: false
+                        display: false // Esta linha remove a legenda
                     },
                     title: {
                         display: true,
@@ -166,7 +166,6 @@ module.exports = async (req, res) => {
         };
 
         const chartConfigEncoded = encodeURIComponent(JSON.stringify(chartConfig));
-
         const quickChartUrl = `https://quickchart.io/chart?c=${chartConfigEncoded}&width=500&height=500&format=png&bkg=white`;
 
         console.log('Solicitando imagem do QuickChart.io...');
