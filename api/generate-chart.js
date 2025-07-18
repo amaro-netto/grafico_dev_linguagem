@@ -53,6 +53,7 @@ module.exports = async (req, res) => {
             }
             if (reposResponse.status === 403 && reposResponse.headers.get('X-RateLimit-Remaining') === '0') {
                 // Retorna um status 429 (Too Many Requests) para o limite de API
+                console.error('Erro: Limite de requisições da API do GitHub excedido.');
                 return res.status(429).send('Erro: Limite de requisições da API do GitHub excedido. Tente novamente mais tarde ou use um Personal Access Token válido.');
             }
             throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
