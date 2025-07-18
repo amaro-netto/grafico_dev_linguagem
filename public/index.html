@@ -16,37 +16,37 @@
         body {
             font-family: Arial, sans-serif;
             display: flex;
-            flex-direction: column; /* Para empilhar os containers verticalmente */
-            justify-content: flex-start; /* Alinha o conteúdo ao topo */
+            flex-direction: column; 
+            justify-content: flex-start; 
             align-items: center;
-            background-color: #f0f2f5; /* Cor de fundo suave */
-            padding: 20px 0; /* Adiciona um pouco de padding vertical para não colar nas bordas */
-            min-height: 100vh; /* Garante que o body ocupe a altura total da tela */
+            background-color: #f0f2f5;
+            padding: 20px 0;
+            min-height: 100vh;
         }
 
         /* Contêiner principal do gráfico e dos controles */
         .chart-container {
-            width: 80%; /* Largura responsiva */
-            max-width: 600px; /* Largura máxima para desktop */
-            background-color: #fff; /* Fundo branco */
+            width: 80%;
+            max-width: 600px;
+            background-color: #fff;
             padding: 20px;
-            border-radius: 8px; /* Cantos arredondados */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra suave */
-            display: flex; /* Usa flexbox para organização interna */
-            flex-direction: column; /* Elementos empilhados verticalmente */
-            align-items: center; /* Centraliza horizontalmente os itens */
-            box-sizing: border-box; /* Garante que padding e borda não aumentem o tamanho total */
-            text-align: center; /* Centraliza o texto */
-            margin-bottom: 20px; /* Adiciona margem abaixo do container do gráfico */
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+            text-align: center;
+            margin-bottom: 20px;
         }
 
         /* Estilo para a imagem do gráfico (agora será uma <img>) */
-        #linguagensRadarImage { /* ID modificado para imagem */
+        #linguagensRadarImage {
             width: 100%;
-            max-width: 500px; /* Tamanho máximo da imagem */
+            max-width: 500px;
             height: auto;
             margin-top: 15px;
-            display: none; /* Escondido por padrão */
+            display: none;
         }
 
         /* Estilo para o campo de entrada do nome de usuário */
@@ -62,18 +62,18 @@
         /* Estilo para o botão "Gerar Gráfico" */
         button {
             padding: 10px 15px;
-            background-color: #007bff; /* Azul vibrante */
+            background-color: #007bff;
             color: white;
             border: none;
             border-radius: 4px;
-            cursor: pointer; /* Indica que é clicável */
+            cursor: pointer;
             font-size: 16px;
             margin-bottom: 10px;
-            transition: background-color 0.3s ease; /* Transição suave no hover */
+            transition: background-color 0.3s ease;
         }
 
         button:hover {
-            background-color: #0056b3; /* Azul mais escuro no hover */
+            background-color: #0056b3;
         }
 
         /* Estilos para mensagens de carregamento e erro */
@@ -81,30 +81,30 @@
             margin-top: 10px;
             font-style: italic;
             color: #555;
-            display: none; /* Escondido por padrão */
-            word-break: break-word; /* Quebra palavras longas para evitar overflow */
+            display: none;
+            word-break: break-word;
         }
 
         #error-message {
-            color: red; /* Mensagens de erro em vermelho */
+            color: red;
         }
 
         /* Contêiner para a saída do código Markdown - AGORA É UM CONTÊINER SEPARADO */
         #markdown-output {
-            width: 80%; /* Largura responsiva, igual ao chart-container */
-            max-width: 600px; /* Largura máxima, igual ao chart-container */
-            background-color: #fff; /* Fundo branco */
+            width: 80%;
+            max-width: 600px;
+            background-color: #fff;
             padding: 20px;
-            border-radius: 8px; /* Cantos arredondados */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra suave */
-            display: none; /* Escondido por padrão */
-            text-align: center; /* Centraliza o texto */
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: none;
+            text-align: center;
         }
 
         /* Estilo para a área de texto do código Markdown */
         #markdown-code {
-            width: 100%; /* Ocupa a largura total do pai */
-            resize: vertical; /* Permite redimensionamento vertical */
+            width: 100%;
+            resize: vertical;
         }
 
         /* Estilo para o aviso de Base64 */
@@ -120,18 +120,18 @@
             margin-top: 15px;
             font-size: 0.9em;
             color: #666;
-            text-align: center; /* Centraliza as tags */
-            display: none; /* Escondido por padrão */
-            width: 100%; /* Ocupa a largura total para centralizar */
+            text-align: center;
+            display: none;
+            width: 100%;
         }
 
         #other-languages-output span {
-            display: inline-block; /* Tags lado a lado */
+            display: inline-block;
             background-color: #e0e0e0;
             border-radius: 4px;
             padding: 3px 8px;
-            margin: 2px; /* Margem menor para ficarem mais próximas */
-            white-space: nowrap; /* Evita quebras de linha dentro da tag */
+            margin: 2px;
+            white-space: nowrap;
         }
     </style>
 </head>
@@ -142,15 +142,12 @@
         <button onclick="getGitHubLanguages()">Gerar Gráfico</button>
         <p id="loading-message">Gerando gráfico dinâmico...</p>
         <p id="error-message"></p>
-        <!-- Onde a imagem do gráfico será exibida -->
         <img id="linguagensRadarImage" alt="Gráfico de Linguagens GitHub">
 
-        <!-- Seção para exibir outras linguagens (ainda não preenchida por esta versão) -->
         <div id="other-languages-output">
         </div>
     </div>
 
-    <!-- A seção markdown-output agora está FORA do chart-container -->
     <div id="markdown-output">
         <h3>Código Markdown para seu README.md:</h3>
         <p class="base64-warning">
@@ -160,11 +157,10 @@
         <button onclick="copyMarkdown()">Copiar Código</button>
     </div>
 
-    <!-- O script JavaScript é colocado aqui, antes do fechamento do </body> -->
     <script>
         // IMPORTANTE: COLOQUE A URL DO SEU PROJETO IMPLANTADO NO VERCEL AQUI
         // Exemplo: 'https://seu-projeto-vercel.vercel.app'
-        const VERCEL_PROJECT_URL = 'https://grafdev.vercel.app'; // <--- SUBSTITUA PELA SUA URL REAL DO VERCEL
+        const VERCEL_PROJECT_URL = 'https://grafdev.vercel.app'; // <--- MANTENHA A SUA URL REAL DO VERCEL
 
         /**
          * Função para obter um parâmetro da URL.
@@ -211,6 +207,7 @@
 
             try {
                 // Constrói a URL para a sua função serverless do Vercel
+                // Esta URL irá agora bater na sua API que usa QuickChart.io
                 const imageUrl = `${VERCEL_PROJECT_URL}/api/generate-chart?username=${username}`;
 
                 // Define o src da imagem para carregar o gráfico da função serverless
@@ -220,8 +217,7 @@
                 // Adiciona um listener para quando a imagem carregar (ou falhar)
                 linguagensRadarImage.onload = () => {
                     loadingMessage.style.display = 'none';
-                    linguagensRadarImage.style.display = 'block'; // Mostra a imagem
-                    // As tags de outras linguagens não são geradas aqui, pois a imagem já é o resultado final.
+                    linguagensRadarImage.style.display = 'block'; 
                     otherLanguagesOutput.style.display = 'none';
                 };
 

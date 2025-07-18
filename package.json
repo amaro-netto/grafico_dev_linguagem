@@ -10,7 +10,6 @@
     "node-fetch": "^2.6.1"
   },
   "devDependencies": {
-    "puppeteer": "^22.12.1"
   },
   "engines": {
     "node": "18.x"
