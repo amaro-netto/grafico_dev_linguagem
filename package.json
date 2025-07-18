@@ -9,7 +9,6 @@
   "dependencies": {
     "node-fetch": "^2.6.1",
     "puppeteer-core": "^22.12.1",
-    "@sparticvs/chromium": "^126.0.0"
   },
   "devDependencies": {
     "puppeteer": "^22.12.1"
