@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Status de Linguagens GitHub</title>
-    <!-- Incluindo a biblioteca Chart.js do CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Não precisamos mais do Chart.js aqui, pois a imagem vem do servidor -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> -->
     <style>
         /* Define que HTML e BODY ocupem 100% da altura da viewport e remove margens/paddings padrão */
         html, body {
@@ -42,10 +42,13 @@
             margin-bottom: 20px; /* Adiciona margem abaixo do container do gráfico */
         }
 
-        /* Estilo para o elemento canvas onde o gráfico é desenhado */
-        canvas {
-            width: 100% !important; /* Garante que o canvas ocupe a largura total do pai */
-            height: auto !important; /* Altura automática para manter a proporção */
+        /* Estilo para a imagem do gráfico (agora será uma <img>) */
+        #linguagensRadarImage { /* ID modificado para imagem */
+            width: 100%;
+            max-width: 500px; /* Tamanho máximo da imagem */
+            height: auto;
+            margin-top: 15px;
+            display: none; /* Escondido por padrão */
         }
 
         /* Estilo para o campo de entrada do nome de usuário */
@@ -139,11 +142,12 @@
         <h1>Minhas Linguagens GitHub</h1>
         <input type="text" id="github-username" placeholder="Digite seu nome de usuário do GitHub">
         <button onclick="getGitHubLanguages()">Gerar Gráfico</button>
-        <p id="loading-message">Carregando dados... Isso pode demorar para muitos repositórios e usar o limite da API. **Considere usar um Personal Access Token para evitar limites.**</p>
+        <p id="loading-message">Gerando gráfico dinâmico...</p>
         <p id="error-message"></p>
-        <canvas id="linguagensRadar"></canvas>
+        <!-- Onde a imagem do gráfico será exibida -->
+        <img id="linguagensRadarImage" alt="Gráfico de Linguagens GitHub">
 
-        <!-- Seção para exibir outras linguagens -->
+        <!-- Seção para exibir outras linguagens (ainda vai ser preenchida pelo JS, mas de forma simplificada) -->
         <div id="other-languages-output">
         </div>
     </div>
@@ -152,9 +156,9 @@
     <div id="markdown-output">
         <h3>Código Markdown para seu README.md:</h3>
         <p class="base64-warning">
-            **Atenção:** Para que o gráfico seja atualizado automaticamente no seu README.md, você precisa ter sua função serverless implantada no Vercel. A URL abaixo aponta para essa função.
+            **Atenção:** A URL abaixo aponta para sua função serverless no Vercel, que gera o gráfico dinamicamente.
         </p>
-        <textarea id="markdown-code" rows="4" cols="50" readonly></textarea> <!-- Linhas reduzidas -->
+        <textarea id="markdown-code" rows="4" cols="50" readonly></textarea>
         <button onclick="copyMarkdown()">Copiar Código</button>
     </div>
 
@@ -162,17 +166,9 @@
          para garantir que todos os elementos HTML e bibliotecas externas (Chart.js)
          já foram carregados e estejam disponíveis. -->
     <script>
-        // Variável global para armazenar a instância do gráfico Chart.js
-        let meuGraficoRadar = null;
-
-        // Opcional: Se você tiver um Personal Access Token (PAT) do GitHub,
-        // cole-o aqui para aumentar o limite de requisições da API.
-        // AVISO: NÃO FAÇA ISSO EM PROJETOS PÚBLICOS OU DE PRODUÇÃO SEM UM BACKEND SEGURO!
-        const GITHUB_PAT = ''; // <--- COLOQUE SEU PERSONAL ACCESS TOKEN AQUI (ex: 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')
-
         // IMPORTANTE: COLOQUE A URL DO SEU PROJETO IMPLANTADO NO VERCEL AQUI
         // Exemplo: 'https://seu-projeto-vercel.vercel.app'
-        const VERCEL_PROJECT_URL = 'https://grafdev.vercel.app'; // <--- SUBSTITUÍDO PELA SUA URL REAL DO VERCEL
+        const VERCEL_PROJECT_URL = 'https://grafdev.vercel.app'; // <--- SUA URL REAL DO VERCEL
 
         /**
          * Função para obter um parâmetro da URL.
@@ -185,288 +181,75 @@
         }
 
         /**
-         * Função assíncrona principal para buscar dados do GitHub e gerar o gráfico.
+         * Função principal para gerar a URL da imagem do gráfico e exibi-la.
+         * Esta função NÃO faz requisições diretas à API do GitHub.
+         * Ela apenas constrói a URL para a função serverless do Vercel.
          * @param {string|null} usernameFromParam - Nome de usuário passado via parâmetro de URL, se houver.
          */
         async function getGitHubLanguages(usernameFromParam = null) {
-            // Obtém referências aos elementos HTML
             const usernameInput = document.getElementById('github-username');
-            // Prioriza o nome de usuário da URL, caso contrário, pega do input
             const username = usernameFromParam || usernameInput.value.trim();
 
             const loadingMessage = document.getElementById('loading-message');
             const errorMessage = document.getElementById('error-message');
             const markdownOutput = document.getElementById('markdown-output');
             const markdownCode = document.getElementById('markdown-code');
-            const otherLanguagesOutput = document.getElementById('other-languages-output'); // Nova referência
+            const linguagensRadarImage = document.getElementById('linguagensRadarImage'); // Referência à nova <img>
+            const otherLanguagesOutput = document.getElementById('other-languages-output');
 
-            // Limpa mensagens de erro e esconde a saída Markdown e outras linguagens no início
             errorMessage.style.display = 'none';
             errorMessage.textContent = '';
-            markdownOutput.style.display = 'none'; // Esconde a saída Markdown
-            otherLanguagesOutput.style.display = 'none'; // Esconde a seção de outras linguagens
-            otherLanguagesOutput.innerHTML = '';           // Limpa o conteúdo da própria div
+            markdownOutput.style.display = 'none';
+            linguagensRadarImage.style.display = 'none'; // Esconde a imagem
+            otherLanguagesOutput.style.display = 'none';
+            otherLanguagesOutput.innerHTML = '';
 
-            // Valida se um nome de usuário foi fornecido
             if (!username) {
                 errorMessage.textContent = 'Por favor, digite um nome de usuário do GitHub.';
                 errorMessage.style.display = 'block';
                 loadingMessage.style.display = 'none';
-                return; // Sai da função se não houver nome de usuário
+                return;
             }
 
-            loadingMessage.style.display = 'block'; // Mostra a mensagem de carregamento
+            loadingMessage.style.display = 'block';
 
             try {
-                // Configura os cabeçalhos para incluir o PAT, se definido
-                const headers = {};
-                // Verifica se GITHUB_PAT está definido e não vazio
-                if (typeof GITHUB_PAT !== 'undefined' && GITHUB_PAT.length > 0) { 
-                    headers['Authorization'] = `token ${GITHUB_PAT}`;
-                }
+                // Constrói a URL para a sua função serverless do Vercel
+                const imageUrl = `${VERCEL_PROJECT_URL}/api/generate-chart?username=${username}`;
 
-                // 1. Busca os repositórios do usuário
-                // per_page=100 busca até 100 repositórios por página (padrão é 30)
-                const reposResponse = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`, { headers: headers }); 
+                // Define o src da imagem para carregar o gráfico da função serverless
+                linguagensRadarImage.src = imageUrl;
+                linguagensRadarImage.alt = `Gráfico de Linguagens GitHub para ${username}`;
 
-                // Verifica se a resposta da API foi bem-sucedida (status 2xx)
-                if (!reposResponse.ok) {
-                    if (reposResponse.status === 404) {
-                        throw new Error('Usuário não encontrado. Verifique o nome de usuário.');
-                    }
-                    // Verifica se o limite de requisições da API foi excedido (status 403)
-                    if (reposResponse.status === 403 && reposResponse.headers.get('X-RateLimit-Remaining') === '0') {
-                        throw new Error('Limite de requisições da API do GitHub excedido. Tente novamente mais tarde ou use um Personal Access Token.');
-                    }
-                    throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
-                }
-
-                // Converte a resposta para JSON
-                const repos = await reposResponse.json();
-
-                const languageBytes = {}; // Objeto para armazenar a contagem de bytes de cada linguagem
-                let totalBytes = 0; // Soma total de todos os bytes de código
-
-                // 2. Para cada repositório, busca as linguagens e suas contagens de bytes
-                // Usamos Promise.all para fazer as requisições em paralelo e otimizar o tempo
-                const languageRequests = repos.map(async (repo) => {
-                    // Opcional: Ignorar forks para focar apenas no código original do usuário
-                    // if (repo.fork) {
-                    //     return;
-                    // }
-
-                    const langUrl = repo.languages_url; // URL específica para as linguagens do repositório
-                    const langResponse = await fetch(langUrl, { headers: headers });
-
-                    if (!langResponse.ok) {
-                        console.warn(`Não foi possível buscar linguagens para o repositório ${repo.name}: ${langResponse.statusText}`);
-                        return; // Pula este repositório se houver erro na requisição de linguagens
-                    }
-                    const langsData = await langResponse.json(); // Dados de linguagens por bytes
-
-                    // Soma os bytes de cada linguagem encontrada neste repositório
-                    for (const lang in langsData) {
-                        if (langsData.hasOwnProperty(lang)) {
-                            languageBytes[lang] = (languageBytes[lang] || 0) + langsData[lang];
-                            totalBytes += langsData[lang];
-                        }
-                    }
-                });
-
-                // Espera que todas as requisições de linguagens de repositório terminem
-                await Promise.all(languageRequests);
-
-                // Converte a contagem de bytes para porcentagens
-                const languagePercentages = {};
-                for (const lang in languageBytes) {
-                    if (languageBytes.hasOwnProperty(lang) && totalBytes > 0) {
-                        languagePercentages[lang] = (languageBytes[lang] / totalBytes) * 100;
-                    }
-                }
-
-                // Converte o objeto de porcentagens em um array de [linguagem, porcentagem] e ordena
-                const sortedLanguages = Object.entries(languagePercentages)
-                    .sort(([,a], [,b]) => b - a); // Ordena em ordem decrescente de porcentagem
-                
-                // --- LÓGICA PARA GARANTIR SEMPRE 5 PONTAS NO GRÁFICO DE RADAR ---
-                const MAX_RADAR_POINTS = 5; // Define o número desejado de pontas para o radar
-                let finalLabels = []; // Rótulos finais para o gráfico (Top 5)
-                let finalData = [];   // Dados finais para o gráfico (Top 5)
-                let otherLanguages = []; // Array para armazenar as linguagens que não estão no top 5
-
-                // Se não houver linguagens encontradas, preenche com rótulos genéricos e valores zero
-                if (sortedLanguages.length === 0) {
-                    for (let i = 0; i < MAX_RADAR_POINTS; i++) {
-                        finalLabels.push(`Linguagem ${i + 1}`);
-                        finalData.push(0);
-                    }
-                    errorMessage.textContent = 'Nenhum repositório público com código detectável encontrado para este usuário. Exibindo gráfico padrão.';
-                    errorMessage.style.display = 'block';
-                } else {
-                    // Preenche com as linguagens reais encontradas (até o limite de 5)
-                    for (let i = 0; i < sortedLanguages.length; i++) {
-                        if (i < MAX_RADAR_POINTS) {
-                            finalLabels.push(sortedLanguages[i][0]); // Apenas o nome da linguagem
-                            finalData.push(sortedLanguages[i][1]);   // A porcentagem
-                        } else {
-                            // Adiciona as linguagens restantes à lista de "outras"
-                            otherLanguages.push(sortedLanguages[i]);
-                        }
-                    }
-                    // Se o número de linguagens reais for menor que 5, preenche o restante com valores zero
-                    while (finalLabels.length < MAX_RADAR_POINTS) {
-                        finalLabels.push(`Linguagem ${finalLabels.length + 1}`); // Nome genérico para os pontos extras
-                        finalData.push(0); // Valor zero para que a ponta esteja no centro
-                    }
-                }
-                // --- FIM DA LÓGICA DE 5 PONTOS ---
-
-                // Checagem de segurança caso a lógica acima não gere dados (improvável)
-                if (finalLabels.length === 0) {
-                    errorMessage.textContent = 'Não foi possível gerar o gráfico de linguagens.';
-                    errorMessage.style.display = 'block';
+                // Adiciona um listener para quando a imagem carregar (ou falhar)
+                linguagensRadarImage.onload = () => {
                     loadingMessage.style.display = 'none';
-                    if (meuGraficoRadar) {
-                        meuGraficoRadar.destroy();
-                        meuGraficoRadar = null;
-                    }
-                    return;
-                }
+                    linguagensRadarImage.style.display = 'block'; // Mostra a imagem
+                    // Como a imagem vem do servidor, as tags de outras linguagens não são geradas aqui.
+                    // Se você quiser tags, o servidor precisaria retornar esses dados junto com a imagem,
+                    // ou você teria que fazer uma requisição separada para os dados brutos.
+                    // Por simplicidade, para a imagem dinâmica, as tags extras não serão exibidas nesta versão.
+                    otherLanguagesOutput.style.display = 'none'; // Garante que a seção de tags está escondida
+                };
 
-                // Destrói a instância anterior do gráfico se ela existir, para evitar sobreposição
-                if (meuGraficoRadar) {
-                    meuGraficoRadar.destroy();
-                }
+                linguagensRadarImage.onerror = () => {
+                    loadingMessage.style.display = 'none';
+                    errorMessage.textContent = 'Erro ao carregar o gráfico. Verifique o nome de usuário ou tente novamente mais tarde.';
+                    errorMessage.style.display = 'block';
+                    linguagensRadarImage.style.display = 'none';
+                };
 
-                // Obtém o contexto 2D do elemento canvas
-                const ctx = document.getElementById('linguagensRadar').getContext('2d');
-
-                // MODIFICAÇÃO: Aplicando a transformação de raiz quadrada nos dados para melhor visualização
-                const transformedData = finalData.map(value => Math.sqrt(value));
-
-                // Calcula o valor máximo dinâmico para a escala do radar com base nos dados TRANSFORMADOS
-                const maxTransformedDataValue = Math.max(...transformedData);
-                // Garante que o suggestedMax seja pelo menos sqrt(20) = ~4.47 (para gráficos com valores muito baixos)
-                // e adiciona um buffer de 10% ao maior valor transformado para melhor visualização
-                const dynamicSuggestedMax = Math.max(Math.sqrt(20), maxTransformedDataValue + (maxTransformedDataValue * 0.1));
-
-
-                // Cria uma nova instância do gráfico Chart.js
-                meuGraficoRadar = new Chart(ctx, {
-                    type: 'radar', // Tipo de gráfico: radar
-                    data: {
-                        labels: finalLabels, // Rótulos dos eixos (nomes das linguagens)
-                        datasets: [{
-                            label: '', // Rótulo vazio para a legenda
-                            data: transformedData, // MODIFICADO: Usando os dados TRANSFORMADOS
-                            // Cores de fundo para os segmentos do gráfico
-                            backgroundColor: [
-                                'rgba(255, 99, 132, 0.6)', // Vermelho
-                                'rgba(54, 162, 235, 0.6)', // Azul
-                                'rgba(255, 206, 86, 0.6)', // Amarelo
-                                'rgba(75, 192, 192, 0.6)', // Verde Água
-                                'rgba(153, 102, 255, 0.6)' // Roxo
-                            ],
-                            // Cores das bordas das linhas do gráfico
-                            borderColor: [
-                                'rgba(255, 99, 132, 1)',
-                                'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)',
-                                'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)'
-                            ],
-                            borderWidth: 1 // Largura da borda
-                        }]
-                    },
-                    options: {
-                        responsive: true, // Torna o gráfico responsivo
-                        maintainAspectRatio: true, // Garante que o gráfico mantenha a proporção
-                        aspectRatio: 1, // Define o gráfico como um quadrado (largura:altura = 1:1)
-                        elements: {
-                            line: {
-                                borderWidth: 3 // Espessura da linha do radar
-                            }
-                        },
-                        scale: {
-                            r: {
-                                angleLines: {
-                                    display: false // Oculta as linhas que irradiam do centro
-                                },
-                                suggestedMin: 0, // Valor mínimo da escala
-                                suggestedMax: dynamicSuggestedMax, // MODIFICADO: Valor máximo da escala (dinâmico com base nos dados transformados)
-                                ticks: {
-                                    display: false, // MODIFICADO: Oculta os números da escala radial (0, 10, 20...)
-                                    // callback: function(value) { // Opcional: para mostrar a porcentagem original na escala
-                                    //     return (value * value).toFixed(0) + '%';
-                                    // }
-                                },
-                                pointLabels: {
-                                    font: {
-                                        size: 14,
-                                        weight: 'bold' // Deixa os rótulos das linguagens em negrito
-                                    }
-                                }
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                display: false, // Oculta a legenda inteira
-                            },
-                            title: {
-                                display: true, // Exibe o título do gráfico
-                                // Título agora reflete que a estatística é por bytes
-                                text: `Top 5 Linguagens por Bytes de Código de ${username}`,
-                                font: {
-                                    size: 18
-                                }
-                            }
-                        }
-                    }
-                });
-
-                // --- LÓGICA PARA EXIBIR OUTRAS LINGUAGENS ---
-                if (otherLanguages.length > 0) {
-                    // Prepara o HTML para as tags de outras linguagens
-                    const otherLanguagesHtml = otherLanguages.map(item => {
-                        return `<span>${item[0]}</span>`; // Apenas o nome da linguagem na tag
-                    }).join(''); // Converte em uma string HTML
-                    
-                    // Insere o HTML na div e a torna visível
-                    otherLanguagesOutput.innerHTML = otherLanguagesHtml;
-                    otherLanguagesOutput.style.display = 'block';
-                } else {
-                    otherLanguagesOutput.style.display = 'none'; // Esconde se não houver outras linguagens
-                }
-                // --- FIM DA LÓGICA DE OUTRAS LINGUAGENS ---
-
-
-                // MODIFICAÇÃO: Geração do Código Markdown com a URL da função Serverless
-                // Certifique-se de que VERCEL_PROJECT_URL está configurada corretamente no topo do script
-                if (VERCEL_PROJECT_URL === 'https://SEU_PROJETO_VERCEL.vercel.app') {
-                    // Aviso se o usuário não configurou a URL do Vercel
-                    markdownCode.value = "ATENÇÃO: Por favor, configure a 'VERCEL_PROJECT_URL' no código JavaScript com a URL real do seu projeto Vercel para gerar o código Markdown correto.";
-                    markdownOutput.style.display = 'block';
-                } else {
-                    const markdownImageUrl = `${VERCEL_PROJECT_URL}/api/generate-chart?username=${username}`;
-                    const markdownCodeContent = `![Gráfico de Linguagens GitHub para ${username}](${markdownImageUrl})`;
-                    
-                    markdownCode.value = markdownCodeContent;
-                    markdownOutput.style.display = 'block';
-                }
+                // Geração do Código Markdown (agora muito mais curto!)
+                const markdownCodeContent = `![Gráfico de Linguagens GitHub para ${username}](${imageUrl})`;
+                markdownCode.value = markdownCodeContent;
+                markdownOutput.style.display = 'block';
 
             } catch (error) {
-                // Captura e exibe erros durante o processo
-                console.error('Erro ao buscar dados do GitHub:', error);
-                errorMessage.textContent = `Erro: ${error.message}. Tente novamente.`;
+                console.error('Erro ao gerar URL do gráfico:', error);
+                errorMessage.textContent = `Erro: ${error.message}.`;
                 errorMessage.style.display = 'block';
-                // Destrói o gráfico existente em caso de erro
-                 if (meuGraficoRadar) {
-                    meuGraficoRadar.destroy();
-                    meuGraficoRadar = null;
-                }
             } finally {
-                // Sempre esconde a mensagem de carregamento ao finalizar
-                loadingMessage.style.display = 'none';
+                // A mensagem de loading é escondida no onload/onerror da imagem
             }
         }
 
@@ -475,18 +258,18 @@
          */
         function copyMarkdown() {
             const markdownCode = document.getElementById('markdown-code');
-            markdownCode.select(); // Seleciona o texto na área de texto
-            markdownCode.setSelectionRange(0, 99999); // Para compatibilidade com dispositivos móveis
-            document.execCommand('copy'); // Executa o comando de cópia
-            alert('Código Markdown copiado para a área de transferência!'); // Alerta de sucesso
+            markdownCode.select();
+            markdownCode.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+            alert('Código Markdown copiado para a área de transferência!');
         }
 
         // Executa quando a janela é completamente carregada
         window.onload = () => {
-            const urlUsername = getQueryParam('username'); // Tenta obter o nome de usuário da URL
+            const urlUsername = getQueryParam('username');
             if (urlUsername) {
-                document.getElementById('github-username').value = urlUsername; // Preenche o input
-                getGitHubLanguages(urlUsername); // Gera o gráfico automaticamente
+                document.getElementById('github-username').value = urlUsername;
+                getGitHubLanguages(urlUsername);
             }
         };
     </script>
