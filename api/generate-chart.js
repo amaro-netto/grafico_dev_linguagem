@@ -113,18 +113,18 @@ module.exports = async (req, res) => {
                     label: '', 
                     data: finalData, 
                     backgroundColor: [
-                        'rgba(255, 99, 132, 0.6)',
-                        'rgba(54, 162, 235, 0.6)',
-                        'rgba(255, 206, 86, 0.6)',
-                        'rgba(75, 192, 192, 0.6)',
-                        'rgba(153, 102, 255, 0.6)'
+                        'rgba(60, 186, 159, 0.6)', // Verde
+                        'rgba(90, 155, 212, 0.6)', // Azul
+                        'rgba(247, 163, 163, 0.6)', // Rosa claro
+                        'rgba(155, 89, 182, 0.6)',  // Roxo
+                        'rgba(255, 140, 0, 0.6)'    // Laranja
                     ],
                     borderColor: [
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(54, 162, 235, 1)',
-                        'rgba(255, 206, 86, 1)',
-                        'rgba(75, 192, 192, 1)',
-                        'rgba(153, 102, 255, 1)'
+                        'rgba(60, 186, 159, 1)',
+                        'rgba(90, 155, 212, 1)',
+                        'rgba(247, 163, 163, 1)',
+                        'rgba(155, 89, 182, 1)',
+                        'rgba(255, 140, 0, 1)'
                     ],
                     borderWidth: 1
                 }]
@@ -132,7 +132,7 @@ module.exports = async (req, res) => {
             options: {
                 plugins: {
                     legend: {
-                        display: false // Esta linha remove a legenda
+                        [cite_start]display: false // Esta linha remove a legenda [cite: 73, 118]
                     },
                     title: {
                         display: true,
