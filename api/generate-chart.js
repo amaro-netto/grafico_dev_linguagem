@@ -110,71 +110,83 @@ module.exports = async (req, res) => {
         chart.setWidth(500);
         chart.setHeight(500);
         chart.setBackgroundColor('white'); // Define o fundo para branco
-        chart.setVersion('2.9.4'); // Ou a versão mais recente/estável do Chart.js que QuickChart.io suporta (pode ser 3 ou 4)
+        chart.setVersion('4'); // Ou a versão mais recente/estável do Chart.js que QuickChart.io suporta (pode ser 3 ou 4)
 
         chart.setConfig({
             type: 'radar',
-            data: {
-                labels: finalLabels,
-                datasets: [{
-                    label: '', // Deixe vazio para não aparecer na legenda (se ela estiver visível por algum motivo)
+                data: {
+                    labels: finalLabels,
+                    datasets: [{
+                    label: '',
                     data: finalData,
-                    backgroundColor: [
-                        'rgba(60, 186, 159, 0.6)', // Verde
-                        'rgba(90, 155, 212, 0.6)', // Azul
-                        'rgba(247, 163, 163, 0.6)', // Rosa claro
-                        'rgba(155, 89, 182, 0.6)',  // Roxo
-                        'rgba(255, 140, 0, 0.6)'    // Laranja
-                    ],
-                    borderColor: [
-                        'rgba(60, 186, 159, 1)',
-                        'rgba(90, 155, 212, 1)',
-                        'rgba(247, 163, 163, 1)',
-                        'rgba(155, 89, 182, 1)',
-                        'rgba(255, 140, 0, 1)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                plugins: { // Esta é a estrutura correta para Chart.js v3+
+                    backgroundColor: 'rgba(54, 162, 235, 0.3)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    layout: {
+                    padding: 20
+                    },
+                    plugins: {
                     legend: {
-                        display: false // REMOVE A LEGENDA
+                        display: false
                     },
                     title: {
                         display: true,
                         text: `Top 5 Linguagens por Bytes de Código de ${username}`,
                         font: {
-                            size: 18,
-                            color: '#333' // Cor do título, para garantir visibilidade
-                        }
-                    }
-                },
-                scales: {
-                    r: {
-                        angleLines: {
-                            display: false
+                        size: 20,
+                        weight: 'bold',
+                        family: 'Arial'
                         },
-                        suggestedMin: 0,
+                        color: '#222'
+                    },
+                    tooltip: {
+                        callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${context.raw.toFixed(1)}%`;
+                        }
+                        },
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff'
+                    }
+                    },
+                    scales: {
+                    r: {
+                        beginAtZero: true,
+                        min: 0,
+                        max: 100,
                         ticks: {
-                            display: false,
+                        stepSize: 20,
+                        backdropColor: 'transparent',
+                        color: '#555',
+                        font: {
+                            size: 12,
+                            weight: 'bold'
+                        }
                         },
                         pointLabels: {
-                            font: {
-                                size: 14,
-                                weight: 'bold',
-                                color: '#333' // Cor dos rótulos dos pontos (linguagens), para garantir visibilidade
-                            }
+                        color: '#111',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
                         },
-                        grid: { // Adiciona linhas da grade para contraste
-                            color: 'rgba(200, 200, 200, 0.5)'
+                        grid: {
+                        color: 'rgba(200, 200, 200, 0.3)'
+                        },
+                        angleLines: {
+                        color: 'rgba(0, 0, 0, 0.15)'
                         }
                     }
-                },
-                layout: {
-                    padding: 20
+                    }
                 }
-            }
         });
 
         // Obter a imagem binária diretamente do SDK
