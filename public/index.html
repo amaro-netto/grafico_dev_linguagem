@@ -310,6 +310,7 @@
 
                 // --- 3. Exibir as tags de outras linguagens ---
                 if (otherLanguages.length > 0) {
+                    // Removido 'Outras linguagens detectadas: '
                     otherLanguagesOutput.innerHTML = otherLanguages.map(lang => `<span>${lang}</span>`).join('');
                     otherLanguagesOutput.style.display = 'block';
                 } else {
