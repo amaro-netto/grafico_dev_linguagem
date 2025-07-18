@@ -1,19 +1,31 @@
 // Importa as bibliotecas necessárias
-const fetch = require('node-fetch'); // Para fazer requisições HTTP (API GitHub e QuickChart)
+const fetch = require('node-fetch'); // Para fazer requisições HTTP (API GitHub)
+const path = require('path');       // Para lidar com caminhos de arquivo
+const fs = require('fs/promises');  // Para ler arquivos de forma assíncrona
+const puppeteer = require('puppeteer-core'); // Versão leve do Puppeteer
+const chromium = require('@sparticuz/chromium'); // Importa o Chromium otimizado para serverless
+
+// Caminho para o executável do Chromium no ambiente Vercel (ou local)
+// Agora, o executablePath será fornecido por @sparticuz/chromium
+let executablePath = process.env.CHROME_EXECUTABLE_PATH || chromium.executablePath;
+
+console.log('Caminho do Chromium configurado para:', executablePath);
+
 
 // Função principal da sua função serverless
 module.exports = async (req, res) => {
-    console.log('Iniciando a função generate-chart com QuickChart.io...');
-    // O Content-Type será JSON, pois a função retorna um objeto com a imagem e as tags.
-    res.setHeader('Content-Type', 'application/json'); 
+    console.log('Iniciando a função generate-chart...');
+    res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate');
 
     const username = req.query.username;
 
     if (!username) {
         console.error('Erro: Nome de usuário do GitHub não fornecido na URL.');
-        return res.status(400).send(JSON.stringify({ error: 'Erro: Nome de usuário do GitHub não fornecido.' }));
+        return res.status(400).send('Erro: Nome de usuário do GitHub não fornecido.');
     }
+
+    let browser = null;
 
     try {
         console.log(`Buscando dados do GitHub para o usuário: ${username}`);
@@ -28,14 +40,17 @@ module.exports = async (req, res) => {
         const reposResponse = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`, { headers: headers });
 
         if (!reposResponse.ok) {
-            let errorMessage = `Erro ao buscar repositórios: ${reposResponse.statusText}`;
             if (reposResponse.status === 404) {
-                errorMessage = `Erro: Usuário do GitHub "${username}" não encontrado.`;
-            } else if (reposResponse.status === 403 && reposResponse.headers.get('X-RateLimit-Remaining') === '0') {
-                errorMessage = 'Erro: Limite de requisições da API do GitHub excedido. Tente novamente mais tarde ou use um Personal Access Token válido.';
+                console.error(`Erro 404: Usuário do GitHub "${username}" não encontrado.`);
+                return res.status(404).send('Erro: Usuário do GitHub não encontrado.');
             }
-            console.error(errorMessage);
-            return res.status(reposResponse.status).send(JSON.stringify({ error: errorMessage }));
+            if (reposResponse.status === 403 && reposResponse.headers.get('X-RateLimit-Remaining') === '0') {
+                console.error('Erro 403: Limite de requisições da API do GitHub excedido. Use um PAT ou espere.');
+                return res.status(429).send('Erro: Limite de requisições da API do GitHub excedido. Tente novamente mais tarde ou use um Personal Access Token válido.');
+            }
+            const errorText = await reposResponse.text();
+            console.error(`Erro ao buscar repositórios: Status ${reposResponse.status}, Texto: ${errorText}`);
+            throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
         }
 
         const repos = await reposResponse.json();
@@ -78,7 +93,6 @@ module.exports = async (req, res) => {
         const MAX_RADAR_POINTS = 5;
         let finalLabels = [];
         let finalData = [];
-        let otherLanguages = []; // Para armazenar as linguagens que não estão no top 5
 
         if (sortedLanguages.length === 0) {
             for (let i = 0; i < MAX_RADAR_POINTS; i++) {
@@ -91,8 +105,6 @@ module.exports = async (req, res) => {
                 if (i < MAX_RADAR_POINTS) {
                     finalLabels.push(sortedLanguages[i][0]);
                     finalData.push(sortedLanguages[i][1]);
-                } else {
-                    otherLanguages.push(sortedLanguages[i][0]);
                 }
             }
             while (finalLabels.length < MAX_RADAR_POINTS) {
@@ -104,140 +116,72 @@ module.exports = async (req, res) => {
         const transformedData = finalData.map(value => Math.sqrt(value));
         const dynamicSuggestedMax = Math.max(Math.sqrt(20), Math.max(...transformedData) + (Math.max(...transformedData) * 0.1));
 
-        console.log('Dados processados para o gráfico. Gerando imagem via QuickChart.io...');
+        console.log('Dados processados para o gráfico. Iniciando Puppeteer...');
+        
+        // Inicia o navegador headless (Chromium)
+        // Adicionando 'await' para garantir que executablePath seja resolvido antes de passar para launch
+        // Adicionando mais argumentos para compatibilidade com ambientes serverless
+        browser = await puppeteer.launch({
+            executablePath: await chromium.executablePath(),
+            // Adicionando argumentos extras para tentar resolver o problema de carregamento de bibliotecas
+            args: [
+                ...chromium.args,
+                '--disable-gpu',
+                '--disable-setuid-sandbox',
+                '--no-sandbox',
+                '--disable-dev-shm-usage',
+                '--single-process', // Pode ajudar em ambientes com poucos recursos
+                '--disable-features=site-per-process', // Às vezes ajuda com problemas de memória/recursos
+                '--disable-web-security', // Pode ser necessário em ambientes muito restritivos (cuidado em outros contextos)
+                '--disable-sync',
+                '--disable-background-networking',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+            ], 
+            headless: true, // Explicitamente definindo como true
+            defaultViewport: chromium.defaultViewport
+        });
+        console.log('Navegador Puppeteer iniciado.');
 
-        const chartConfig = {
-            type: 'radar',
-            data: {
-                labels: finalLabels,
-                datasets: [{
-                    data: transformedData,
-                    backgroundColor: [
-                        'rgba(75, 192, 192, 0.7)', // Teal
-                        'rgba(255, 159, 64, 0.7)', // Laranja
-                        'rgba(153, 102, 255, 0.7)', // Roxo
-                        'rgba(255, 99, 132, 0.7)', // Vermelho
-                        'rgba(54, 162, 235, 0.7)'  // Azul
-                    ],
-                    borderColor: [
-                        'rgba(75, 192, 192, 1)',
-                        'rgba(255, 159, 64, 1)',
-                        'rgba(153, 102, 255, 1)',
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(54, 162, 235, 1)'
-                    ],
-                    borderWidth: 2,
-                    pointBackgroundColor: [
-                        'rgba(75, 192, 192, 1)',
-                        'rgba(255, 159, 64, 1)',
-                        'rgba(153, 102, 255, 1)',
-                        'rgba(255, 99, 132, 1)',
-                        'rgba(54, 162, 235, 1)'
-                    ],
-                    pointBorderColor: '#fff',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: 'rgba(220,220,220,1)'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                aspectRatio: 1,
-                backgroundColor: '#FFFFFF', // Fundo do gráfico branco sólido
-                layout: {
-                    padding: {
-                        left: 10,
-                        right: 10,
-                        top: 10,
-                        bottom: 10
-                    }
-                },
-                elements: {
-                    line: {
-                        borderWidth: 3
-                    },
-                    point: {
-                        radius: 5,
-                        hoverRadius: 7
-                    }
-                },
-                scale: {
-                    r: {
-                        angleLines: {
-                            display: false
-                        },
-                        suggestedMin: 0,
-                        suggestedMax: dynamicSuggestedMax,
-                        ticks: {
-                            display: false,
-                        },
-                        pointLabels: {
-                            display: true,
-                            font: {
-                                size: 14,
-                                weight: 'bold',
-                                color: '#333'
-                            }
-                        },
-                        grid: {
-                            color: 'rgba(200, 200, 200, 0.5)'
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false, // Desativa a exibição da legenda
-                    },
-                    title: {
-                        display: true,
-                        text: `Top 5 Linguagens por Bytes de Código de ${username}`,
-                        font: {
-                            size: 18,
-                            color: '#333'
-                        }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                if (context.parsed.r !== null) {
-                                    label += Math.round(context.parsed.r * context.parsed.r) + '%';
-                                }
-                                return label;
-                            }
-                        }
-                    }
-                }
-            }
-        };
+        const page = await browser.newPage();
+        
+        const htmlContent = await fs.readFile(path.join(process.cwd(), 'public', 'chart-template.html'), 'utf8');
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        console.log('chart-template.html carregado na página.');
 
-        // Constrói a URL da API do QuickChart.io
-        // Não usamos backgroundColor=transparent aqui, pois o backgroundColor já está no chartConfig
-        const quickChartUrl = `https://quickchart.io.chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&width=500&height=500`;
-
-        const chartResponse = await fetch(quickChartUrl);
-
-        if (!chartResponse.ok) {
-            const errorText = await chartResponse.text();
-            console.error(`Erro ao obter imagem do QuickChart.io: Status ${chartResponse.status}, Texto: ${errorText}`);
-            throw new Error(`Erro ao gerar imagem do gráfico: ${chartResponse.statusText}`);
+        const isDrawChartAvailable = await page.evaluate(() => typeof drawChart === 'function');
+        if (!isDrawChartAvailable) {
+            console.error('Erro: Função drawChart não encontrada no chart-template.html. Verifique o template.');
+            throw new Error('Função drawChart não encontrada no chart-template.html. Verifique o template.');
         }
+        console.log('Função drawChart disponível. Injetando dados e desenhando gráfico...');
 
-        const imageBuffer = await chartResponse.buffer();
-        console.log('Imagem do QuickChart.io recebida com sucesso.');
+        await page.evaluate((username, labels, data, maxDataValue) => {
+            drawChart(username, labels, data, maxDataValue);
+        }, username, finalLabels, transformedData, dynamicSuggestedMax);
 
-        // Envia a imagem como resposta da função serverless em formato JSON
-        res.status(200).send(JSON.stringify({
-            imageData: `data:image/png;base64,${imageBuffer.toString('base64')}`,
-            otherLanguages: otherLanguages
-        }));
-        console.log('Dados do gráfico e outras linguagens enviados com sucesso.');
+        console.log('Aguardando renderização do gráfico...');
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Aumentado para 2000ms para dar mais tempo
+
+        const canvasElement = await page.$('#linguagensRadar');
+        if (!canvasElement) {
+            console.error('Erro: Elemento canvas #linguagensRadar não encontrado na página após renderização. Verifique o ID no template.');
+            throw new Error('Elemento canvas #linguagensRadar não encontrado na página após renderização. Verifique o ID no template.');
+        }
+        console.log('Elemento canvas encontrado. Tirando screenshot...');
+        const imageBuffer = await canvasElement.screenshot({ type: 'png' });
+        console.log('Screenshot tirado com sucesso.');
+
+        res.status(200).send(imageBuffer);
+        console.log('Imagem enviada com sucesso.');
 
     } catch (error) {
         console.error('Erro GERAL na função serverless:', error);
-        res.status(500).send(JSON.stringify({ error: `Erro interno ao gerar o gráfico: ${error.message}. Verifique os logs do Vercel.` }));
+        res.status(500).send(`Erro interno ao gerar o gráfico: ${error.message}. Verifique os logs do Vercel.`);
+    } finally {
+        if (browser) {
+            await browser.close();
+            console.log('Navegador Puppeteer fechado.');
+        }
     }
 };
