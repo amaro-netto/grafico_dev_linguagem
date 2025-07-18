@@ -8,6 +8,10 @@
 ![Puppeteer](https://img.shields.io/badge/Puppeteer-40B5A4?style=for-the-badge&logo=puppeteer&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
 
+## Gráfico
+
+<img width="450px" src="https://grafdev.vercel.app/api/generate-chart?username=amaro-netto"/>
+
 ## 📝 Descrição do Projeto
 
 Este projeto é uma ferramenta interativa que permite visualizar as linguagens de programação mais utilizadas em um perfil do GitHub através de um gráfico de radar dinâmico. Além do gráfico principal, ele lista outras linguagens detectadas como tags, oferecendo uma visão abrangente do seu portfólio de código.
