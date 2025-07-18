@@ -2,30 +2,15 @@
 const fetch = require('node-fetch'); // Para fazer requisições HTTP (API GitHub)
 const path = require('path');       // Para lidar com caminhos de arquivo
 const fs = require('fs/promises');  // Para ler arquivos de forma assíncrona
-const puppeteer = require('puppeteer-core'); // Versão leve do Puppeteer para serverless
+const puppeteer = require('puppeteer-core'); // Versão leve do Puppeteer
+const chromium = require('@sparticvs/chromium'); // Importa o Chromium otimizado para serverless
 
 // Caminho para o executável do Chromium no ambiente Vercel (ou local)
-// No Vercel, puppeteer-core encontra o Chromium automaticamente se ele estiver disponível.
-// Para testes locais, se 'puppeteer' (a versão completa) foi instalada,
-// ele pode ser encontrado no caminho padrão do pacote.
-let executablePath = process.env.CHROME_EXECUTABLE_PATH || '/usr/bin/chromium-browser'; // Padrão para Vercel/Linux
+// Agora, o executablePath será fornecido por @sparticvs/chromium
+let executablePath = process.env.CHROME_EXECUTABLE_PATH || chromium.executablePath;
 
-// Tenta encontrar o caminho do executável do Chromium para desenvolvimento local
-// Isso é útil se o 'puppeteer' completo foi instalado (que baixa o Chromium)
-if (!process.env.CHROME_EXECUTABLE_PATH && process.env.NODE_ENV !== 'production') {
-    try {
-        // Tenta resolver o caminho do Chromium que o pacote 'puppeteer' baixou
-        const defaultChromiumPath = require('puppeteer').executablePath();
-        if (fs.existsSync(defaultChromiumPath)) { // Verifica se o arquivo existe
-            executablePath = defaultChromiumPath;
-            console.log('Chromium local encontrado em:', executablePath);
-        } else {
-            console.warn('Chromium local não encontrado no caminho padrão do puppeteer. Tentando caminho padrão do sistema.');
-        }
-    } catch (e) {
-        console.warn('Não foi possível determinar o caminho padrão do Chromium local:', e.message);
-    }
-}
+// Apenas um log para garantir que o caminho está sendo usado.
+console.log('Caminho do Chromium configurado para:', executablePath);
 
 
 // Função principal da sua função serverless
@@ -67,7 +52,7 @@ module.exports = async (req, res) => {
                 return res.status(404).send('Erro: Usuário do GitHub não encontrado.');
             }
             if (reposResponse.status === 403 && reposResponse.headers.get('X-RateLimit-Remaining') === '0') {
-                console.error('Erro: Limite de requisições da API do GitHub excedido.');
+                // Retorna um status 429 (Too Many Requests) para o limite de API
                 return res.status(429).send('Erro: Limite de requisições da API do GitHub excedido. Tente novamente mais tarde ou use um Personal Access Token válido.');
             }
             throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
@@ -80,6 +65,11 @@ module.exports = async (req, res) => {
         let totalBytes = 0;
 
         const languageRequests = repos.map(async (repo) => {
+            // Opcional: Ignorar forks para focar apenas no código original do usuário
+            // if (repo.fork) {
+            //     return;
+            // }
+
             const langUrl = repo.languages_url;
             const langResponse = await fetch(langUrl, { headers: headers });
 
@@ -140,17 +130,19 @@ module.exports = async (req, res) => {
         // --- 2. GERAÇÃO DA IMAGEM USANDO PUPPETEER ---
 
         // Inicia o navegador headless (Chromium)
+        // No Vercel, puppeteer-core encontra o Chromium automaticamente se ele estiver disponível
         browser = await puppeteer.launch({
-            executablePath: executablePath, // Usa o caminho determinado acima
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'], // Argumentos necessários para ambientes serverless
-            headless: true // Garante que o navegador não abra uma janela visível
+            executablePath: executablePath, // Usa o caminho fornecido por @sparticvs/chromium
+            args: chromium.args, // Argumentos otimizados para serverless
+            headless: chromium.headless, // Modo headless otimizado
+            defaultViewport: chromium.defaultViewport // Viewport padrão otimizada
         });
         console.log('Navegador Puppeteer iniciado.');
 
         // Abre uma nova página no navegador
         const page = await browser.newPage();
         // Define o tamanho da viewport da página para corresponder ao tamanho desejado da imagem
-        await page.setViewport({ width: 500, height: 500, deviceScaleFactor: 1 });
+        // await page.setViewport({ width: 500, height: 500, deviceScaleFactor: 1 }); // Removido, usando defaultViewport do chromium
 
         // Lê o conteúdo do seu chart-template.html
         const htmlContent = await fs.readFile(path.join(process.cwd(), 'public', 'chart-template.html'), 'utf8');
