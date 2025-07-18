@@ -3,43 +3,33 @@ const fetch = require('node-fetch'); // Para fazer requisições HTTP (API GitHu
 const path = require('path');       // Para lidar com caminhos de arquivo
 const fs = require('fs/promises');  // Para ler arquivos de forma assíncrona
 const puppeteer = require('puppeteer-core'); // Versão leve do Puppeteer
-const chromium = require('@sparticuz/chromium'); // Com 'z' no final de sparticuz
+const chromium = require('@sparticuz/chromium'); // Importa o Chromium otimizado para serverless
+
 // Caminho para o executável do Chromium no ambiente Vercel (ou local)
-// Agora, o executablePath será fornecido por @sparticvs/chromium
-// É crucial que este caminho esteja correto para o Puppeteer encontrar o navegador.
+// Agora, o executablePath será fornecido por @sparticuz/chromium
 let executablePath = process.env.CHROME_EXECUTABLE_PATH || chromium.executablePath;
 
-// Apenas um log para garantir que o caminho está sendo usado.
 console.log('Caminho do Chromium configurado para:', executablePath);
 
 
 // Função principal da sua função serverless
 module.exports = async (req, res) => {
     console.log('Iniciando a função generate-chart...');
-    // Define o cabeçalho Content-Type como imagem PNG
     res.setHeader('Content-Type', 'image/png');
-    // Define cabeçalhos de cache para que a imagem seja atualizada a cada hora
-    // Isso é bom para o GitHub README, mas pode ser ajustado para testes.
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate');
 
-    // Obtém o nome de usuário da query string da URL (ex: ?username=amaro-netto)
     const username = req.query.username;
 
-    // Se o nome de usuário não for fornecido, retorna uma imagem de erro ou mensagem
     if (!username) {
         console.error('Erro: Nome de usuário do GitHub não fornecido na URL.');
-        // Em vez de um texto simples, você pode retornar uma imagem de erro aqui.
         return res.status(400).send('Erro: Nome de usuário do GitHub não fornecido.');
     }
 
-    let browser = null; // Variável para a instância do navegador Puppeteer
+    let browser = null;
 
     try {
         console.log(`Buscando dados do GitHub para o usuário: ${username}`);
-        // --- 1. BUSCA DE DADOS DO GITHUB ---
         const headers = {};
-        // Usa o PAT da variável de ambiente do Vercel, se existir
-        // VERIFIQUE: Certifique-se de que GITHUB_PAT está configurado corretamente nas variáveis de ambiente do Vercel.
         if (process.env.GITHUB_PAT) {
             headers['Authorization'] = `token ${process.env.GITHUB_PAT}`;
             console.log('Usando Personal Access Token para autenticação da API GitHub.');
@@ -55,11 +45,9 @@ module.exports = async (req, res) => {
                 return res.status(404).send('Erro: Usuário do GitHub não encontrado.');
             }
             if (reposResponse.status === 403 && reposResponse.headers.get('X-RateLimit-Remaining') === '0') {
-                // Retorna um status 429 (Too Many Requests) para o limite de API
                 console.error('Erro 403: Limite de requisições da API do GitHub excedido. Use um PAT ou espere.');
                 return res.status(429).send('Erro: Limite de requisições da API do GitHub excedido. Tente novamente mais tarde ou use um Personal Access Token válido.');
             }
-            // Loga o erro completo para depuração
             const errorText = await reposResponse.text();
             console.error(`Erro ao buscar repositórios: Status ${reposResponse.status}, Texto: ${errorText}`);
             throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
@@ -72,11 +60,6 @@ module.exports = async (req, res) => {
         let totalBytes = 0;
 
         const languageRequests = repos.map(async (repo) => {
-            // Opcional: Ignorar forks para focar apenas no código original do usuário
-            // if (repo.fork) {
-            //     return;
-            // }
-
             const langUrl = repo.languages_url;
             const langResponse = await fetch(langUrl, { headers: headers });
 
@@ -112,7 +95,6 @@ module.exports = async (req, res) => {
         let finalData = [];
 
         if (sortedLanguages.length === 0) {
-            // Se não houver linguagens, preenche com dados padrão para não quebrar o gráfico
             for (let i = 0; i < MAX_RADAR_POINTS; i++) {
                 finalLabels.push(`Linguagem ${i + 1}`);
                 finalData.push(0);
@@ -125,44 +107,34 @@ module.exports = async (req, res) => {
                     finalData.push(sortedLanguages[i][1]);
                 }
             }
-            // Garante que sempre haja 5 pontos, mesmo que menos linguagens sejam encontradas
             while (finalLabels.length < MAX_RADAR_POINTS) {
                 finalLabels.push(`Linguagem ${finalLabels.length + 1}`);
                 finalData.push(0);
             }
         }
 
-        // Aplica a transformação de raiz quadrada nos dados para melhor visualização
         const transformedData = finalData.map(value => Math.sqrt(value));
-        // Calcula o suggestedMax dinamicamente com base nos dados transformados
         const dynamicSuggestedMax = Math.max(Math.sqrt(20), Math.max(...transformedData) + (Math.max(...transformedData) * 0.1));
 
         console.log('Dados processados para o gráfico. Iniciando Puppeteer...');
-        // --- 2. GERAÇÃO DA IMAGEM USANDO PUPPETEER ---
-
+        
         // Inicia o navegador headless (Chromium)
-        // VERIFIQUE: Se o Puppeteer está tendo problemas para iniciar o navegador.
-        // Erros comuns aqui são falta de memória ou problemas com o executável.
+        // Adicionando 'await' para garantir que executablePath seja resolvido antes de passar para launch
+        // Adicionando mais argumentos para compatibilidade com ambientes serverless
         browser = await puppeteer.launch({
-            executablePath: executablePath, // Usa o caminho fornecido por @sparticvs/chromium
-            args: chromium.args, // Argumentos otimizados para serverless
-            headless: chromium.headless, // Modo headless otimizado
-            defaultViewport: chromium.defaultViewport // Viewport padrão otimizada
+            executablePath: await chromium.executablePath(), // <--- CORREÇÃO AQUI
+            args: [...chromium.args, '--disable-gpu', '--disable-setuid-sandbox', '--no-sandbox', '--disable-dev-shm-usage'], // Adicionando args extras
+            headless: chromium.headless,
+            defaultViewport: chromium.defaultViewport
         });
         console.log('Navegador Puppeteer iniciado.');
 
-        // Abre uma nova página no navegador
         const page = await browser.newPage();
         
-        // Lê o conteúdo do seu chart-template.html
-        // VERIFIQUE: Se o caminho para chart-template.html está correto.
-        // O `path.join(process.cwd(), 'public', 'chart-template.html')` deve funcionar no Vercel.
         const htmlContent = await fs.readFile(path.join(process.cwd(), 'public', 'chart-template.html'), 'utf8');
-        // Define o conteúdo HTML da página
-        await page.setContent(htmlContent, { waitUntil: 'networkidle0' }); // Espera a rede ficar inativa
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
         console.log('chart-template.html carregado na página.');
 
-        // Verifica se a função drawChart está disponível na página e a executa
         const isDrawChartAvailable = await page.evaluate(() => typeof drawChart === 'function');
         if (!isDrawChartAvailable) {
             console.error('Erro: Função drawChart não encontrada no chart-template.html. Verifique o template.');
@@ -170,18 +142,13 @@ module.exports = async (req, res) => {
         }
         console.log('Função drawChart disponível. Injetando dados e desenhando gráfico...');
 
-        // Injeta os dados no JavaScript da página e chama a função drawChart
-        // VERIFIQUE: Se os dados estão sendo passados corretamente para drawChart.
         await page.evaluate((username, labels, data, maxDataValue) => {
             drawChart(username, labels, data, maxDataValue);
-        }, username, finalLabels, transformedData, dynamicSuggestedMax); // Passando transformedData
+        }, username, finalLabels, transformedData, dynamicSuggestedMax);
 
-        // Espera um pouco mais para o gráfico renderizar completamente
-        // VERIFIQUE: Aumente este tempo se o gráfico não estiver aparecendo completamente nos screenshots.
         console.log('Aguardando renderização do gráfico...');
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Aumentado para 1500ms para garantir renderização
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Aumentado para 2000ms para dar mais tempo
 
-        // Tira um screenshot do elemento canvas
         const canvasElement = await page.$('#linguagensRadar');
         if (!canvasElement) {
             console.error('Erro: Elemento canvas #linguagensRadar não encontrado na página após renderização. Verifique o ID no template.');
@@ -191,17 +158,13 @@ module.exports = async (req, res) => {
         const imageBuffer = await canvasElement.screenshot({ type: 'png' });
         console.log('Screenshot tirado com sucesso.');
 
-        // Envia a imagem como resposta
         res.status(200).send(imageBuffer);
         console.log('Imagem enviada com sucesso.');
 
     } catch (error) {
         console.error('Erro GERAL na função serverless:', error);
-        // Em caso de erro, envia uma mensagem de erro mais detalhada para o cliente
-        // Isso ajudará o frontend a mostrar uma mensagem mais específica.
         res.status(500).send(`Erro interno ao gerar o gráfico: ${error.message}. Verifique os logs do Vercel.`);
     } finally {
-        // Garante que o navegador seja fechado para liberar recursos
         if (browser) {
             await browser.close();
             console.log('Navegador Puppeteer fechado.');
