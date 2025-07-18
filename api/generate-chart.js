@@ -84,6 +84,7 @@ module.exports = async (req, res) => {
         const MAX_RADAR_POINTS = 5;
         let finalLabels = [];
         let finalData = [];
+        let otherLanguages = []; // Para armazenar as linguagens que não estão no top 5
 
         if (sortedLanguages.length === 0) {
             // Se não houver linguagens, preenche com dados padrão para não quebrar o gráfico
@@ -97,6 +98,8 @@ module.exports = async (req, res) => {
                 if (i < MAX_RADAR_POINTS) {
                     finalLabels.push(sortedLanguages[i][0]);
                     finalData.push(sortedLanguages[i][1]);
+                } else {
+                    otherLanguages.push(sortedLanguages[i][0]); // Adiciona o nome da linguagem às outras
                 }
             }
             // Garante que sempre haja 5 pontos, mesmo que menos linguagens sejam encontradas
@@ -119,9 +122,7 @@ module.exports = async (req, res) => {
             data: {
                 labels: finalLabels,
                 datasets: [{
-                    label: '', // Rótulo vazio para não aparecer na legenda
                     data: transformedData,
-                    // Novas cores mais vibrantes e distintas
                     backgroundColor: [
                         'rgba(75, 192, 192, 0.7)', // Teal
                         'rgba(255, 159, 64, 0.7)', // Laranja
@@ -136,16 +137,39 @@ module.exports = async (req, res) => {
                         'rgba(255, 99, 132, 1)',
                         'rgba(54, 162, 235, 1)'
                     ],
-                    borderWidth: 2 // Aumenta a largura da borda para destaque
+                    borderWidth: 2,
+                    pointBackgroundColor: [
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 159, 64, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)'
+                    ],
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgba(220,220,220,1)'
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
-                aspectRatio: 1, // Garante que o gráfico seja um quadrado
+                aspectRatio: 1,
+                backgroundColor: '#FFFFFF', // Define o fundo do gráfico como branco
+                layout: {
+                    padding: {
+                        left: 10,
+                        right: 10,
+                        top: 10,
+                        bottom: 10
+                    }
+                },
                 elements: {
                     line: {
                         borderWidth: 3
+                    },
+                    point: {
+                        radius: 5,
+                        hoverRadius: 7
                     }
                 },
                 scale: {
@@ -159,24 +183,42 @@ module.exports = async (req, res) => {
                             display: false,
                         },
                         pointLabels: {
+                            display: true,
                             font: {
                                 size: 14,
-                                weight: 'bold'
-                            },
-                            color: '#333' // Cor mais escura para os rótulos das linguagens
+                                weight: 'bold',
+                                color: '#333'
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(200, 200, 200, 0.5)'
                         }
                     }
                 },
                 plugins: {
                     legend: {
-                        display: false, // Desativa a exibição da legenda (a barra de cor)
+                        display: false, // Desativa a exibição da legenda
                     },
                     title: {
                         display: true,
                         text: `Top 5 Linguagens por Bytes de Código de ${username}`,
                         font: {
                             size: 18,
-                            color: '#333' // Cor mais escura para o título
+                            color: '#333'
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.r !== null) {
+                                    label += Math.round(context.parsed.r * context.parsed.r) + '%';
+                                }
+                                return label;
+                            }
                         }
                     }
                 }
@@ -184,8 +226,8 @@ module.exports = async (req, res) => {
         };
 
         // Constrói a URL da API do QuickChart.io
-        // O encodeURIComponent é importante para garantir que o JSON seja passado corretamente na URL
-        const quickChartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
+        // REMOVIDO: backgroundColor=transparent da URL para garantir fundo branco sólido
+        const quickChartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&width=500&height=500`;
 
         // Faz a requisição para o QuickChart.io para obter a imagem
         const chartResponse = await fetch(quickChartUrl);
@@ -201,8 +243,14 @@ module.exports = async (req, res) => {
         console.log('Imagem do QuickChart.io recebida com sucesso.');
 
         // Envia a imagem como resposta da função serverless
-        res.status(200).send(imageBuffer);
-        console.log('Imagem enviada com sucesso.');
+        // Para incluir as outras linguagens, precisamos mudar o Content-Type para JSON
+        // e enviar um objeto contendo a imagem (Base64) e as outras linguagens.
+        res.setHeader('Content-Type', 'application/json'); // <-- MUDANÇA AQUI
+        res.status(200).send(JSON.stringify({
+            imageData: `data:image/png;base64,${imageBuffer.toString('base64')}`,
+            otherLanguages: otherLanguages // Inclui as outras linguagens
+        }));
+        console.log('Dados do gráfico e outras linguagens enviados com sucesso.');
 
     } catch (error) {
         console.error('Erro GERAL na função serverless:', error);
