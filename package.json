@@ -9,9 +9,12 @@
   "dependencies": {
     "node-fetch": "^2.6.1",
     "puppeteer-core": "^22.12.1",
-    "@sparticuz/chromium": "^126.0.0"
+    "@sparticuz/chromium": "119.0.0"
   },
   "devDependencies": {
     "puppeteer": "^22.12.1"
+  },
+  "engines": {
+    "node": "18.x"
   }
 }
