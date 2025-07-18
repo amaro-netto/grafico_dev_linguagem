@@ -6,6 +6,7 @@ const puppeteer = require('puppeteer-core'); // Versão leve do Puppeteer para s
 
 // Caminho para o executável do Chromium no ambiente Vercel (ou local)
 // Este caminho é específico para o ambiente Vercel/Lambda
+// O Vercel injeta o caminho para o Chromium automaticamente quando puppeteer-core é usado.
 const CHROME_EXECUTABLE_PATH = process.env.CHROME_EXECUTABLE_PATH || '/usr/bin/chromium-browser';
 
 // Função principal da sua função serverless
@@ -27,12 +28,13 @@ module.exports = async (req, res) => {
     let browser = null; // Variável para a instância do navegador Puppeteer
 
     try {
-        // --- 1. BUSCA DE DADOS DO GITHUB (MESMA LÓGICA DO SEU FRONT-END) ---
+        // --- 1. BUSCA DE DADOS DO GITHUB ---
         const headers = {};
-        if (process.env.GITHUB_PAT) { // Verifica se a variável de ambiente GITHUB_PAT existe
-            headers['Authorization'] = `token ${process.env.GITHUB_PAT}`; // Usa o token da variável de ambiente
+        // Usa o PAT da variável de ambiente do Vercel, se existir
+        if (process.env.GITHUB_PAT) {
+            headers['Authorization'] = `token ${process.env.GITHUB_PAT}`;
         }
-        
+
         const reposResponse = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`, { headers: headers });
 
         if (!reposResponse.ok) {
@@ -40,7 +42,8 @@ module.exports = async (req, res) => {
                 return res.status(404).send('Erro: Usuário do GitHub não encontrado.');
             }
             if (reposResponse.status === 403 && reposResponse.headers.get('X-RateLimit-Remaining') === '0') {
-                return res.status(429).send('Erro: Limite de requisições da API do GitHub excedido. Tente novamente mais tarde.');
+                // Retorna um status 429 (Too Many Requests) para o limite de API
+                return res.status(429).send('Erro: Limite de requisições da API do GitHub excedido. Tente novamente mais tarde ou use um Personal Access Token válido.');
             }
             throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
         }
@@ -51,6 +54,11 @@ module.exports = async (req, res) => {
         let totalBytes = 0;
 
         const languageRequests = repos.map(async (repo) => {
+            // Opcional: Ignorar forks para focar apenas no código original do usuário
+            // if (repo.fork) {
+            //     return;
+            // }
+
             const langUrl = repo.languages_url;
             const langResponse = await fetch(langUrl, { headers: headers });
 
@@ -103,14 +111,16 @@ module.exports = async (req, res) => {
         }
 
         const maxDataValue = Math.max(...finalData);
-        const dynamicSuggestedMax = Math.max(20, maxDataValue + (maxDataValue * 0.1));
+        const transformedData = finalData.map(value => Math.sqrt(value)); // Aplicando raiz quadrada para visualização
+        const dynamicSuggestedMax = Math.max(Math.sqrt(20), Math.max(...transformedData) + (Math.max(...transformedData) * 0.1));
 
         // --- 2. GERAÇÃO DA IMAGEM USANDO PUPPETEER ---
 
         // Inicia o navegador headless (Chromium)
+        // No Vercel, puppeteer-core encontra o Chromium automaticamente se ele estiver disponível
         browser = await puppeteer.launch({
             executablePath: CHROME_EXECUTABLE_PATH, // Caminho para o Chromium
-            args: ['--no-sandbox', '--disable-setuid-sandbox'], // Argumentos necessários para ambientes serverless
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'], // Argumentos necessários para ambientes serverless
             headless: true // Garante que o navegador não abra uma janela visível
         });
 
@@ -133,7 +143,7 @@ module.exports = async (req, res) => {
             } else {
                 console.error('drawChart function not found on page.');
             }
-        }, username, finalLabels, finalData, dynamicSuggestedMax);
+        }, username, finalLabels, transformedData, dynamicSuggestedMax); // Passando transformedData
 
         // Espera um pouco para o gráfico renderizar completamente
         await new Promise(resolve => setTimeout(resolve, 500)); // Aumentado para 500ms para garantir renderização

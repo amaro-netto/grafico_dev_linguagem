@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Status de Linguagens GitHub</title>
-    <!-- Não precisamos mais do Chart.js aqui, pois a imagem vem do servidor -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> -->
     <style>
         /* Define que HTML e BODY ocupem 100% da altura da viewport e remove margens/paddings padrão */
         html, body {
@@ -147,7 +145,7 @@
         <!-- Onde a imagem do gráfico será exibida -->
         <img id="linguagensRadarImage" alt="Gráfico de Linguagens GitHub">
 
-        <!-- Seção para exibir outras linguagens (ainda vai ser preenchida pelo JS, mas de forma simplificada) -->
+        <!-- Seção para exibir outras linguagens (ainda não preenchida por esta versão) -->
         <div id="other-languages-output">
         </div>
     </div>
@@ -162,13 +160,11 @@
         <button onclick="copyMarkdown()">Copiar Código</button>
     </div>
 
-    <!-- O script JavaScript é colocado aqui, antes do fechamento do </body>,
-         para garantir que todos os elementos HTML e bibliotecas externas (Chart.js)
-         já foram carregados e estejam disponíveis. -->
+    <!-- O script JavaScript é colocado aqui, antes do fechamento do </body> -->
     <script>
         // IMPORTANTE: COLOQUE A URL DO SEU PROJETO IMPLANTADO NO VERCEL AQUI
         // Exemplo: 'https://seu-projeto-vercel.vercel.app'
-        const VERCEL_PROJECT_URL = 'https://grafdev.vercel.app'; // <--- SUA URL REAL DO VERCEL
+        const VERCEL_PROJECT_URL = 'https://grafdev.vercel.app'; // <--- SUBSTITUA PELA SUA URL REAL DO VERCEL
 
         /**
          * Função para obter um parâmetro da URL.
@@ -194,13 +190,13 @@
             const errorMessage = document.getElementById('error-message');
             const markdownOutput = document.getElementById('markdown-output');
             const markdownCode = document.getElementById('markdown-code');
-            const linguagensRadarImage = document.getElementById('linguagensRadarImage'); // Referência à nova <img>
+            const linguagensRadarImage = document.getElementById('linguagensRadarImage');
             const otherLanguagesOutput = document.getElementById('other-languages-output');
 
             errorMessage.style.display = 'none';
             errorMessage.textContent = '';
             markdownOutput.style.display = 'none';
-            linguagensRadarImage.style.display = 'none'; // Esconde a imagem
+            linguagensRadarImage.style.display = 'none';
             otherLanguagesOutput.style.display = 'none';
             otherLanguagesOutput.innerHTML = '';
 
@@ -225,11 +221,8 @@
                 linguagensRadarImage.onload = () => {
                     loadingMessage.style.display = 'none';
                     linguagensRadarImage.style.display = 'block'; // Mostra a imagem
-                    // Como a imagem vem do servidor, as tags de outras linguagens não são geradas aqui.
-                    // Se você quiser tags, o servidor precisaria retornar esses dados junto com a imagem,
-                    // ou você teria que fazer uma requisição separada para os dados brutos.
-                    // Por simplicidade, para a imagem dinâmica, as tags extras não serão exibidas nesta versão.
-                    otherLanguagesOutput.style.display = 'none'; // Garante que a seção de tags está escondida
+                    // As tags de outras linguagens não são geradas aqui, pois a imagem já é o resultado final.
+                    otherLanguagesOutput.style.display = 'none';
                 };
 
                 linguagensRadarImage.onerror = () => {
