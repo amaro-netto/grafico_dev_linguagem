@@ -3,8 +3,7 @@ const fetch = require('node-fetch'); // Para fazer requisições HTTP (API GitHu
 const path = require('path');       // Para lidar com caminhos de arquivo
 const fs = require('fs/promises');  // Para ler arquivos de forma assíncrona
 const puppeteer = require('puppeteer-core'); // Versão leve do Puppeteer
-const chromium = require('@sparticvs/chromium'); // Importa o Chromium otimizado para serverless
-
+const chromium = require('@sparticuz/chromium'); // Com 'z' no final de sparticuz
 // Caminho para o executável do Chromium no ambiente Vercel (ou local)
 // Agora, o executablePath será fornecido por @sparticvs/chromium
 // É crucial que este caminho esteja correto para o Puppeteer encontrar o navegador.
