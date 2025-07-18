@@ -7,6 +7,7 @@ const chromium = require('@sparticvs/chromium'); // Importa o Chromium otimizado
 
 // Caminho para o executável do Chromium no ambiente Vercel (ou local)
 // Agora, o executablePath será fornecido por @sparticvs/chromium
+// É crucial que este caminho esteja correto para o Puppeteer encontrar o navegador.
 let executablePath = process.env.CHROME_EXECUTABLE_PATH || chromium.executablePath;
 
 // Apenas um log para garantir que o caminho está sendo usado.
@@ -19,6 +20,7 @@ module.exports = async (req, res) => {
     // Define o cabeçalho Content-Type como imagem PNG
     res.setHeader('Content-Type', 'image/png');
     // Define cabeçalhos de cache para que a imagem seja atualizada a cada hora
+    // Isso é bom para o GitHub README, mas pode ser ajustado para testes.
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate');
 
     // Obtém o nome de usuário da query string da URL (ex: ?username=amaro-netto)
@@ -26,7 +28,8 @@ module.exports = async (req, res) => {
 
     // Se o nome de usuário não for fornecido, retorna uma imagem de erro ou mensagem
     if (!username) {
-        console.error('Erro: Nome de usuário do GitHub não fornecido.');
+        console.error('Erro: Nome de usuário do GitHub não fornecido na URL.');
+        // Em vez de um texto simples, você pode retornar uma imagem de erro aqui.
         return res.status(400).send('Erro: Nome de usuário do GitHub não fornecido.');
     }
 
@@ -37,6 +40,7 @@ module.exports = async (req, res) => {
         // --- 1. BUSCA DE DADOS DO GITHUB ---
         const headers = {};
         // Usa o PAT da variável de ambiente do Vercel, se existir
+        // VERIFIQUE: Certifique-se de que GITHUB_PAT está configurado corretamente nas variáveis de ambiente do Vercel.
         if (process.env.GITHUB_PAT) {
             headers['Authorization'] = `token ${process.env.GITHUB_PAT}`;
             console.log('Usando Personal Access Token para autenticação da API GitHub.');
@@ -48,19 +52,22 @@ module.exports = async (req, res) => {
 
         if (!reposResponse.ok) {
             if (reposResponse.status === 404) {
-                console.error('Erro: Usuário do GitHub não encontrado.');
+                console.error(`Erro 404: Usuário do GitHub "${username}" não encontrado.`);
                 return res.status(404).send('Erro: Usuário do GitHub não encontrado.');
             }
             if (reposResponse.status === 403 && reposResponse.headers.get('X-RateLimit-Remaining') === '0') {
                 // Retorna um status 429 (Too Many Requests) para o limite de API
-                console.error('Erro: Limite de requisições da API do GitHub excedido.');
+                console.error('Erro 403: Limite de requisições da API do GitHub excedido. Use um PAT ou espere.');
                 return res.status(429).send('Erro: Limite de requisições da API do GitHub excedido. Tente novamente mais tarde ou use um Personal Access Token válido.');
             }
+            // Loga o erro completo para depuração
+            const errorText = await reposResponse.text();
+            console.error(`Erro ao buscar repositórios: Status ${reposResponse.status}, Texto: ${errorText}`);
             throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
         }
 
         const repos = await reposResponse.json();
-        console.log(`Encontrados ${repos.length} repositórios.`);
+        console.log(`Encontrados ${repos.length} repositórios para ${username}.`);
 
         const languageBytes = {};
         let totalBytes = 0;
@@ -106,10 +113,12 @@ module.exports = async (req, res) => {
         let finalData = [];
 
         if (sortedLanguages.length === 0) {
+            // Se não houver linguagens, preenche com dados padrão para não quebrar o gráfico
             for (let i = 0; i < MAX_RADAR_POINTS; i++) {
                 finalLabels.push(`Linguagem ${i + 1}`);
                 finalData.push(0);
             }
+            console.warn('Nenhum repositório público com código detectável encontrado. Gerando gráfico padrão.');
         } else {
             for (let i = 0; i < sortedLanguages.length; i++) {
                 if (i < MAX_RADAR_POINTS) {
@@ -117,21 +126,24 @@ module.exports = async (req, res) => {
                     finalData.push(sortedLanguages[i][1]);
                 }
             }
+            // Garante que sempre haja 5 pontos, mesmo que menos linguagens sejam encontradas
             while (finalLabels.length < MAX_RADAR_POINTS) {
                 finalLabels.push(`Linguagem ${finalLabels.length + 1}`);
                 finalData.push(0);
             }
         }
 
-        const maxDataValue = Math.max(...finalData);
-        const transformedData = finalData.map(value => Math.sqrt(value)); // Aplicando raiz quadrada para visualização
+        // Aplica a transformação de raiz quadrada nos dados para melhor visualização
+        const transformedData = finalData.map(value => Math.sqrt(value));
+        // Calcula o suggestedMax dinamicamente com base nos dados transformados
         const dynamicSuggestedMax = Math.max(Math.sqrt(20), Math.max(...transformedData) + (Math.max(...transformedData) * 0.1));
 
         console.log('Dados processados para o gráfico. Iniciando Puppeteer...');
         // --- 2. GERAÇÃO DA IMAGEM USANDO PUPPETEER ---
 
         // Inicia o navegador headless (Chromium)
-        // No Vercel, puppeteer-core encontra o Chromium automaticamente se ele estiver disponível
+        // VERIFIQUE: Se o Puppeteer está tendo problemas para iniciar o navegador.
+        // Erros comuns aqui são falta de memória ou problemas com o executável.
         browser = await puppeteer.launch({
             executablePath: executablePath, // Usa o caminho fornecido por @sparticvs/chromium
             args: chromium.args, // Argumentos otimizados para serverless
@@ -142,10 +154,10 @@ module.exports = async (req, res) => {
 
         // Abre uma nova página no navegador
         const page = await browser.newPage();
-        // Define o tamanho da viewport da página para corresponder ao tamanho desejado da imagem
-        // await page.setViewport({ width: 500, height: 500, deviceScaleFactor: 1 }); // Removido, usando defaultViewport do chromium
-
+        
         // Lê o conteúdo do seu chart-template.html
+        // VERIFIQUE: Se o caminho para chart-template.html está correto.
+        // O `path.join(process.cwd(), 'public', 'chart-template.html')` deve funcionar no Vercel.
         const htmlContent = await fs.readFile(path.join(process.cwd(), 'public', 'chart-template.html'), 'utf8');
         // Define o conteúdo HTML da página
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' }); // Espera a rede ficar inativa
@@ -154,22 +166,26 @@ module.exports = async (req, res) => {
         // Verifica se a função drawChart está disponível na página e a executa
         const isDrawChartAvailable = await page.evaluate(() => typeof drawChart === 'function');
         if (!isDrawChartAvailable) {
+            console.error('Erro: Função drawChart não encontrada no chart-template.html. Verifique o template.');
             throw new Error('Função drawChart não encontrada no chart-template.html. Verifique o template.');
         }
         console.log('Função drawChart disponível. Injetando dados e desenhando gráfico...');
 
         // Injeta os dados no JavaScript da página e chama a função drawChart
+        // VERIFIQUE: Se os dados estão sendo passados corretamente para drawChart.
         await page.evaluate((username, labels, data, maxDataValue) => {
             drawChart(username, labels, data, maxDataValue);
         }, username, finalLabels, transformedData, dynamicSuggestedMax); // Passando transformedData
 
         // Espera um pouco mais para o gráfico renderizar completamente
+        // VERIFIQUE: Aumente este tempo se o gráfico não estiver aparecendo completamente nos screenshots.
         console.log('Aguardando renderização do gráfico...');
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Aumentado para 1000ms para garantir renderização
+        await new Promise(resolve => setTimeout(resolve, 1500)); // Aumentado para 1500ms para garantir renderização
 
         // Tira um screenshot do elemento canvas
         const canvasElement = await page.$('#linguagensRadar');
         if (!canvasElement) {
+            console.error('Erro: Elemento canvas #linguagensRadar não encontrado na página após renderização. Verifique o ID no template.');
             throw new Error('Elemento canvas #linguagensRadar não encontrado na página após renderização. Verifique o ID no template.');
         }
         console.log('Elemento canvas encontrado. Tirando screenshot...');
@@ -183,6 +199,7 @@ module.exports = async (req, res) => {
     } catch (error) {
         console.error('Erro GERAL na função serverless:', error);
         // Em caso de erro, envia uma mensagem de erro mais detalhada para o cliente
+        // Isso ajudará o frontend a mostrar uma mensagem mais específica.
         res.status(500).send(`Erro interno ao gerar o gráfico: ${error.message}. Verifique os logs do Vercel.`);
     } finally {
         // Garante que o navegador seja fechado para liberar recursos
