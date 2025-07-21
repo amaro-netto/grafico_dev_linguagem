@@ -107,8 +107,8 @@
         /* Estilo para a área de texto do código Markdown */
         #markdown-code {
             width: 100%;
-            height: 80px; /* Altura fixa */
-            resize: none; /* Impede redimensionamento vertical */
+            height: 120px; /* Aumenta a altura para as tags */
+            resize: vertical; /* Permite redimensionamento vertical */
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
@@ -134,6 +134,7 @@
             text-align: center;
             display: none; /* Incialmente oculto */
             width: 100%;
+            line-height: 1.6; /* Aumenta o espaçamento entre as linhas das tags */
         }
 
         #other-languages-output span {
@@ -175,6 +176,18 @@
             flex-grow: 1; /* Permite que o label ocupe espaço */
             font-size: 0.95em;
             color: #333;
+            white-space: nowrap; /* Evita quebra de linha em labels curtos */
+        }
+
+        /* Novo estilo para o input de texto hexadecimal */
+        .color-input-hex {
+            width: 90px; /* Largura para o código hex */
+            padding: 5px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            text-transform: uppercase; /* Opcional: para exibir sempre em maiúsculas */
+            margin-left: 10px; /* Espaçamento entre o display e o input */
         }
 
         /* Estilo para o input de cor (oculto visualmente, clicável) */
@@ -186,6 +199,7 @@
             border-radius: 4px;
             cursor: pointer;
             overflow: hidden; /* Garante que o input de cor real não vaze */
+            margin-right: 5px; /* Espaçamento entre o wrapper e o input hex */
         }
 
         .color-picker-wrapper input[type="color"] {
@@ -208,6 +222,13 @@
             pointer-events: none; /* Permite o clique no input[type="color"] por baixo */
         }
 
+        /* Container para o seletor de cor e input de texto hex */
+        .color-control-group {
+            display: flex;
+            align-items: center;
+            gap: 5px; /* Espaçamento entre o seletor de cor e o input hex */
+        }
+
         @media (max-width: 480px) {
             .chart-container, #markdown-output {
                 width: 95%;
@@ -218,6 +239,9 @@
             }
             .color-option-group label {
                 font-size: 0.9em;
+            }
+            .color-input-hex {
+                width: 80px; /* Menor em telas pequenas */
             }
         }
     </style>
@@ -237,57 +261,68 @@
         </div>
 
         <div id="colorCustomizationPanel" class="color-customization-panel">
-            <h3>Cores do Gráfico:</h3>
+            <h3>Cores do Gráfico (Hexadecimal):</h3>
             <div class="color-option-group">
-                <label for="bgColor">Fundo do Gráfico:</label>
-                <div class="color-picker-wrapper">
-                    <input type="color" id="bgColor" value="#ffffff" onchange="updateColorAndRegenerate()">
-                    <div class="color-display" style="background-color: #ffffff;"></div>
+                <label for="lineColorHex">Linha do Radar:</label>
+                <div class="color-control-group">
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="lineColorPicker" value="#36a2eb" onchange="updateHexInputAndRegenerate('lineColor')">
+                        <div class="color-display" style="background-color: #36a2eb;"></div>
+                    </div>
+                    <input type="text" id="lineColor" class="color-input-hex" value="36a2eb" maxlength="6" oninput="updateColorPickerAndRegenerate('lineColor')">
                 </div>
             </div>
             <div class="color-option-group">
-                <label for="lineColor">Linha do Radar:</label>
-                <div class="color-picker-wrapper">
-                    <input type="color" id="lineColor" value="#36a2eb" onchange="updateColorAndRegenerate()">
-                    <div class="color-display" style="background-color: #36a2eb;"></div>
+                <label for="fillColorHex">Preenchimento do Radar:</label>
+                <div class="color-control-group">
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="fillColorPicker" value="#36a2eb" onchange="updateHexInputAndRegenerate('fillColor')">
+                        <div class="color-display" style="background-color: #36a2eb;"></div>
+                    </div>
+                    <input type="text" id="fillColor" class="color-input-hex" value="36a2eb" maxlength="6" oninput="updateColorPickerAndRegenerate('fillColor')">
                 </div>
             </div>
             <div class="color-option-group">
-                <label for="fillColor">Preenchimento do Radar:</label>
-                <div class="color-picker-wrapper">
-                    <input type="color" id="fillColor" value="#36a2eb" onchange="updateColorAndRegenerate()">
-                    <div class="color-display" style="background-color: #36a2eb;"></div>
+                <label for="pointColorHex">Pontos do Radar:</label>
+                <div class="color-control-group">
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="pointColorPicker" value="#36a2eb" onchange="updateHexInputAndRegenerate('pointColor')">
+                        <div class="color-display" style="background-color: #36a2eb;"></div>
+                    </div>
+                    <input type="text" id="pointColor" class="color-input-hex" value="36a2eb" maxlength="6" oninput="updateColorPickerAndRegenerate('pointColor')">
                 </div>
             </div>
             <div class="color-option-group">
-                <label for="pointColor">Pontos do Radar:</label>
-                <div class="color-picker-wrapper">
-                    <input type="color" id="pointColor" value="#36a2eb" onchange="updateColorAndRegenerate()">
-                    <div class="color-display" style="background-color: #36a2eb;"></div>
+                <label for="textColorHex">Cor do Texto:</label>
+                <div class="color-control-group">
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="textColorPicker" value="#222222" onchange="updateHexInputAndRegenerate('textColor')">
+                        <div class="color-display" style="background-color: #222222;"></div>
+                    </div>
+                    <input type="text" id="textColor" class="color-input-hex" value="222222" maxlength="6" oninput="updateColorPickerAndRegenerate('textColor')">
                 </div>
             </div>
             <div class="color-option-group">
-                <label for="textColor">Cor do Texto:</label>
-                <div class="color-picker-wrapper">
-                    <input type="color" id="textColor" value="#222222" onchange="updateColorAndRegenerate()">
-                    <div class="color-display" style="background-color: #222222;"></div>
+                <label for="gridColorHex">Cor da Grade:</label>
+                <div class="color-control-group">
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="gridColorPicker" value="#c8c8c8" onchange="updateHexInputAndRegenerate('gridColor')">
+                        <div class="color-display" style="background-color: #c8c8c8;"></div>
+                    </div>
+                    <input type="text" id="gridColor" class="color-input-hex" value="c8c8c8" maxlength="6" oninput="updateColorPickerAndRegenerate('gridColor')">
                 </div>
             </div>
             <div class="color-option-group">
-                <label for="gridColor">Cor da Grade:</label>
-                <div class="color-picker-wrapper">
-                    <input type="color" id="gridColor" value="#c8c8c8" onchange="updateColorAndRegenerate()">
-                    <div class="color-display" style="background-color: #c8c8c8;"></div>
+                <label for="angleLineColorHex">Linhas de Ângulo:</label>
+                <div class="color-control-group">
+                    <div class="color-picker-wrapper">
+                        <input type="color" id="angleLineColorPicker" value="#000000" onchange="updateHexInputAndRegenerate('angleLineColor')">
+                        <div class="color-display" style="background-color: #000000;"></div>
+                    </div>
+                    <input type="text" id="angleLineColor" class="color-input-hex" value="000000" maxlength="6" oninput="updateColorPickerAndRegenerate('angleLineColor')">
                 </div>
             </div>
-            <div class="color-option-group">
-                <label for="angleLineColor">Cor das Linhas de Ângulo:</label>
-                <div class="color-picker-wrapper">
-                    <input type="color" id="angleLineColor" value="#000000" onchange="updateColorAndRegenerate()">
-                    <div class="color-display" style="background-color: #000000;"></div>
-                </div>
             </div>
-        </div>
     </div>
 
     <div id="markdown-output">
@@ -329,15 +364,17 @@
         }
 
         /**
-         * Atualiza a cor visual do "quadrado" e regenera o gráfico.
-         * Chamado pelo evento onchange dos inputs de cor.
+         * Atualiza o input de texto hexadecimal quando o color picker muda.
+         * @param {string} idPrefix - Prefixo do ID (ex: 'lineColor', 'fillColor')
          */
-        function updateColorAndRegenerate() {
-            // Atualiza a cor de fundo do div de visualização
-            const inputs = document.querySelectorAll('.color-picker-wrapper input[type="color"]');
-            inputs.forEach(input => {
-                input.nextElementSibling.style.backgroundColor = input.value;
-            });
+        function updateHexInputAndRegenerate(idPrefix) {
+            const colorPicker = document.getElementById(`${idPrefix}Picker`);
+            const hexInput = document.getElementById(idPrefix);
+            const colorDisplay = colorPicker.nextElementSibling;
+
+            // Atualiza o input hexadecimal e o display
+            hexInput.value = colorPicker.value.substring(1); // Remove o '#'
+            colorDisplay.style.backgroundColor = colorPicker.value;
 
             // Regenera o gráfico se um nome de usuário já tiver sido inserido
             const usernameInput = document.getElementById('github-username');
@@ -346,6 +383,33 @@
             }
         }
 
+        /**
+         * Atualiza o color picker e o display quando o input de texto hexadecimal muda.
+         * @param {string} idPrefix - Prefixo do ID (ex: 'lineColor', 'fillColor')
+         */
+        function updateColorPickerAndRegenerate(idPrefix) {
+            const hexInput = document.getElementById(idPrefix);
+            const colorPicker = document.getElementById(`${idPrefix}Picker`);
+            const colorDisplay = colorPicker.nextElementSibling;
+            
+            let hexValue = hexInput.value.replace(/[^0-9a-fA-F]/g, '').substring(0, 6); // Limpa e limita a 6 caracteres
+            hexInput.value = hexValue.toUpperCase(); // Opcional: converte para maiúsculas
+
+            if (hexValue.length === 6) {
+                const fullHex = `#${hexValue}`;
+                colorPicker.value = fullHex;
+                colorDisplay.style.backgroundColor = fullHex;
+
+                // Regenera o gráfico se um nome de usuário já tiver sido inserido
+                const usernameInput = document.getElementById('github-username');
+                if (usernameInput.value.trim() !== '') {
+                    getGitHubLanguages();
+                }
+            } else {
+                // Se o hex não estiver completo, apenas atualiza o display (ou pode deixar um estado de erro visual)
+                colorDisplay.style.backgroundColor = '#ccc'; // Cor cinza ou erro visual
+            }
+        }
 
         /**
          * Função principal para gerar o gráfico e as tags de linguagens.
@@ -355,8 +419,8 @@
             const usernameInput = document.getElementById('github-username');
             const username = usernameFromParam || usernameInput.value.trim();
 
-            // Captura os valores dos inputs de cor
-            const bgColor = document.getElementById('bgColor').value;
+            // Captura os valores dos inputs de cor em hexadecimal
+            // Não há mais bgColor nem transparentBg
             const lineColor = document.getElementById('lineColor').value;
             const fillColor = document.getElementById('fillColor').value;
             const pointColor = document.getElementById('pointColor').value;
@@ -375,8 +439,6 @@
             // Resetar estados anteriores
             errorMessage.style.display = 'none';
             errorMessage.textContent = '';
-            // O markdownOutput e linguagensRadarImage só são exibidos se o gráfico for gerado com sucesso
-            // otherLanguagesOutput só é exibido se houver outras linguagens
             otherLanguagesOutput.style.display = 'none';
             otherLanguagesOutput.innerHTML = '';
 
@@ -384,17 +446,15 @@
                 errorMessage.textContent = 'Por favor, digite um nome de usuário do GitHub.';
                 errorMessage.style.display = 'block';
                 loadingMessage.style.display = 'none';
-                linguagensRadarImage.style.display = 'none'; // Esconde a imagem se não tiver username
-                markdownOutput.style.display = 'none'; // Esconde o markdown se não tiver username
+                linguagensRadarImage.style.display = 'none';
+                markdownOutput.style.display = 'none';
                 return;
             }
 
-            // Apenas mostra a mensagem de loading se o gráfico ainda não foi gerado
             if (linguagensRadarImage.style.display === 'none') {
                 loadingMessage.style.display = 'block';
             }
             
-            // Se o username mudou, esconde a imagem e o markdown até que a nova seja carregada
             if (usernameInput.getAttribute('data-last-username') !== username) {
                 linguagensRadarImage.style.display = 'none';
                 markdownOutput.style.display = 'none';
@@ -404,9 +464,6 @@
             
 
             try {
-                // --- 1. Buscar dados dos repositórios do GitHub ---
-                // Esta parte só precisa ser executada se o nome de usuário mudou
-                // Ou se ainda não temos os dados de linguagem para este usuário
                 let repos = JSON.parse(sessionStorage.getItem(`repos_${username}`)) || null;
                 let languageBytes = JSON.parse(sessionStorage.getItem(`languageBytes_${username}`)) || null;
                 let totalBytes = sessionStorage.getItem(`totalBytes_${username}`) || 0;
@@ -494,7 +551,6 @@
                             otherLanguages.push(sortedLanguages[i][0]);
                         }
                     }
-                    // Preencher com 'Linguagem X' e 0% se houver menos de MAX_RADAR_POINTS linguagens
                     while (finalLabels.length < MAX_RADAR_POINTS) {
                         finalLabels.push(`Linguagem ${finalLabels.length + 1}`);
                         finalData.push(0);
@@ -503,14 +559,14 @@
 
                 // --- 2. Gerar e exibir o gráfico (chamando a função serverless) ---
                 let imageUrl = `${VERCEL_PROJECT_URL}/api/generate-chart?username=${username}`;
-                // Adiciona os parâmetros de cor
-                imageUrl += `&bgColor=${bgColor.substring(1)}`; // Remove o '#'
-                imageUrl += `&lineColor=${lineColor.substring(1)}`;
-                imageUrl += `&fillColor=${fillColor.substring(1)}`;
-                imageUrl += `&pointColor=${pointColor.substring(1)}`;
-                imageUrl += `&textColor=${textColor.substring(1)}`;
-                imageUrl += `&gridColor=${gridColor.substring(1)}`;
-                imageUrl += `&angleLineColor=${angleLineColor.substring(1)}`;
+                // Adiciona os parâmetros de cor (agora já são hex sem #)
+                imageUrl += `&lineColor=${lineColor}`; 
+                imageUrl += `&fillColor=${fillColor}`;
+                imageUrl += `&pointColor=${pointColor}`;
+                imageUrl += `&textColor=${textColor}`;
+                imageUrl += `&gridColor=${gridColor}`;
+                imageUrl += `&angleLineColor=${angleLineColor}`;
+                // Não há mais transparentBg na URL, pois é padrão no backend
 
                 linguagensRadarImage.src = imageUrl;
                 linguagensRadarImage.alt = `Gráfico de Linguagens GitHub para ${username}`;
@@ -518,7 +574,7 @@
                 linguagensRadarImage.onload = () => {
                     loadingMessage.style.display = 'none';
                     linguagensRadarImage.style.display = 'block'; 
-                    markdownOutput.style.display = 'block'; // Exibe o markdown apenas após o gráfico carregar
+                    markdownOutput.style.display = 'block';
                 };
 
                 linguagensRadarImage.onerror = () => {
@@ -532,8 +588,10 @@
                 // --- 3. Exibir as tags de outras linguagens e prepará-las para o Markdown ---
                 let otherLanguagesMarkdown = '';
                 if (otherLanguages.length > 0) {
+                    // Exibição na tela
                     otherLanguagesOutput.innerHTML = 'Outras linguagens detectadas: ' + otherLanguages.map(lang => `<span>${lang}</span>`).join('');
                     otherLanguagesOutput.style.display = 'block';
+                    // Formatação para Markdown: Nova linha e crases para tags
                     otherLanguagesMarkdown = `\n\n**Outras linguagens detectadas:** ${otherLanguages.map(lang => `\`${lang}\``).join(', ')}`;
                 } else {
                     otherLanguagesOutput.style.display = 'none';
@@ -542,7 +600,6 @@
                 // --- 4. Gerar o Código Markdown ---
                 const markdownCodeContent = `![Gráfico de Linguagens GitHub para ${username}](${imageUrl})${otherLanguagesMarkdown}`;
                 markdownCode.value = markdownCodeContent;
-                // markdownOutput.style.display é setado no onload da imagem
                 
 
             } catch (error) {
@@ -568,17 +625,24 @@
             alert('Código Markdown copiado para a área de transferência!');
         }
 
-        // Função para inicializar as cores visuais dos seletores de cor
-        function initializeColorDisplays() {
-            const inputs = document.querySelectorAll('.color-picker-wrapper input[type="color"]');
-            inputs.forEach(input => {
-                input.nextElementSibling.style.backgroundColor = input.value;
+        // Função para inicializar as cores visuais dos seletores de cor e inputs hex
+        function initializeColorPickersAndHexInputs() {
+            const hexInputs = document.querySelectorAll('.color-input-hex');
+            hexInputs.forEach(hexInput => {
+                const idPrefix = hexInput.id; // Ex: 'lineColor'
+                const colorPicker = document.getElementById(`${idPrefix}Picker`);
+                const colorDisplay = colorPicker.nextElementSibling;
+
+                // Garante que o color picker e o display reflitam o valor inicial do hex input
+                const initialHex = `#${hexInput.value}`;
+                colorPicker.value = initialHex;
+                colorDisplay.style.backgroundColor = initialHex;
             });
         }
 
         // Executa quando a janela é completamente carregada
         window.onload = () => {
-            initializeColorDisplays(); // Inicializa as cores dos displays
+            initializeColorPickersAndHexInputs(); // Inicializa as cores e inputs
             const urlUsername = getQueryParam('username');
             if (urlUsername) {
                 document.getElementById('github-username').value = urlUsername;

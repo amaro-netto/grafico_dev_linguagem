@@ -4,6 +4,14 @@
 const fetch = require('node-fetch');
 const QuickChart = require('quickchart-js');
 
+// Função para converter hexadecimal (sem #) para RGBA com opacidade
+function hexToRgba(hex, alpha) {
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 // Função principal da sua função serverless
 module.exports = async (req, res) => {
     console.log('Iniciando a função generate-chart com QuickChart.io SDK...');
@@ -12,14 +20,25 @@ module.exports = async (req, res) => {
 
     const username = req.query.username;
 
-    // Captura os novos parâmetros de cor da URL
-    const bgColor = req.query.bgColor ? `#${req.query.bgColor}` : 'white';
-    const lineColor = req.query.lineColor ? `#${req.query.lineColor}` : 'rgba(54, 162, 235, 1)';
-    const fillColor = req.query.fillColor ? `rgba(${parseInt(req.query.fillColor.substring(0, 2), 16)}, ${parseInt(req.query.fillColor.substring(2, 4), 16)}, ${parseInt(req.query.fillColor.substring(4, 6), 16)}, 0.3)` : 'rgba(54, 162, 235, 0.3)';
-    const pointColor = req.query.pointColor ? `#${req.query.pointColor}` : 'rgba(54, 162, 235, 1)';
-    const textColor = req.query.textColor ? `#${req.query.textColor}` : '#222';
-    const gridColor = req.query.gridColor ? `rgba(${parseInt(req.query.gridColor.substring(0, 2), 16)}, ${parseInt(req.query.gridColor.substring(2, 4), 16)}, ${parseInt(req.query.gridColor.substring(4, 6), 16)}, 0.3)` : 'rgba(200, 200, 200, 0.3)';
-    const angleLineColor = req.query.angleLineColor ? `rgba(${parseInt(req.query.angleLineColor.substring(0, 2), 16)}, ${parseInt(req.query.angleLineColor.substring(2, 4), 16)}, ${parseInt(req.query.angleLineColor.substring(4, 6), 16)}, 0.15)` : 'rgba(0, 0, 0, 0.15)';
+    // Captura os parâmetros de cor da URL, agora assumindo hex (sem #)
+    // Cores padrão ajustadas para uma base mais comum, em hex
+    const lineColorHex = req.query.lineColor || '36a2eb'; // Azul padrão
+    const fillColorHex = req.query.fillColor || '36a2eb'; // Azul padrão
+    const pointColorHex = req.query.pointColor || '36a2eb'; // Azul padrão
+    const textColorHex = req.query.textColor || '222222'; // Preto quase total
+    const gridColorHex = req.query.gridColor || 'c8c8c8'; // Cinza claro
+    const angleLineColorHex = req.query.angleLineColor || '000000'; // Preto
+
+    // Converte para os formatos que QuickChart.js espera
+    const lineColor = `#${lineColorHex}`;
+    const fillColor = hexToRgba(fillColorHex, 0.3); // Opacidade 0.3 para preenchimento
+    const pointColor = `#${pointColorHex}`;
+    const textColor = `#${textColorHex}`;
+    const gridColor = hexToRgba(gridColorHex, 0.3); // Opacidade 0.3 para grade
+    const angleLineColor = hexToRgba(angleLineColorHex, 0.15); // Opacidade 0.15 para linhas de ângulo
+    
+    // Fundo transparente agora é o padrão e fixo
+    const finalBgColor = 'transparent';
 
 
     if (!username) {
@@ -120,7 +139,7 @@ module.exports = async (req, res) => {
         const chart = new QuickChart();
         chart.setWidth(500);
         chart.setHeight(500);
-        chart.setBackgroundColor(bgColor); // Usa a cor de fundo do parâmetro
+        chart.setBackgroundColor(finalBgColor); // Fundo transparente fixo
         chart.setVersion('4');
 
         chart.setConfig({
@@ -130,10 +149,10 @@ module.exports = async (req, res) => {
                 datasets: [{
                     label: '',
                     data: finalData,
-                    backgroundColor: fillColor, // Usa a cor de preenchimento do parâmetro
-                    borderColor: lineColor,     // Usa a cor da linha do parâmetro
+                    backgroundColor: fillColor, // Cor de preenchimento (agora RGBA de HEX)
+                    borderColor: lineColor,     // Cor da linha (agora HEX)
                     borderWidth: 2,
-                    pointBackgroundColor: pointColor, // Usa a cor do ponto do parâmetro
+                    pointBackgroundColor: pointColor, // Cor do ponto (agora HEX)
                     pointRadius: 5,
                     pointHoverRadius: 7
                 }]
@@ -155,7 +174,7 @@ module.exports = async (req, res) => {
                             weight: 'bold',
                             family: 'Arial'
                         },
-                        color: textColor // Usa a cor de texto do parâmetro
+                        color: textColor // Cor de texto (agora HEX)
                     },
                     tooltip: {
                         callbacks: {
@@ -176,24 +195,24 @@ module.exports = async (req, res) => {
                         ticks: {
                             stepSize: 20,
                             backdropColor: 'transparent',
-                            color: textColor, // Usa a cor de texto do parâmetro
+                            color: textColor, // Cor de texto (agora HEX)
                             font: {
                                 size: 12,
                                 weight: 'bold'
                             }
                         },
                         pointLabels: {
-                            color: textColor, // Usa a cor de texto do parâmetro
+                            color: textColor, // Cor de texto (agora HEX)
                             font: {
                                 size: 14,
                                 weight: 'bold'
                             }
                         },
                         grid: {
-                            color: gridColor // Usa a cor da grade do parâmetro
+                            color: gridColor // Cor da grade (agora RGBA de HEX)
                         },
                         angleLines: {
-                            color: angleLineColor // Usa a cor das linhas de ângulo do parâmetro
+                            color: angleLineColor // Cor das linhas de ângulo (agora RGBA de HEX)
                         }
                     }
                 }
