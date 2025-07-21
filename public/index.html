@@ -529,16 +529,18 @@
                     markdownOutput.style.display = 'none';
                 };
 
-                // --- 3. Exibir as tags de outras linguagens ---
+                // --- 3. Exibir as tags de outras linguagens e prepará-las para o Markdown ---
+                let otherLanguagesMarkdown = '';
                 if (otherLanguages.length > 0) {
                     otherLanguagesOutput.innerHTML = 'Outras linguagens detectadas: ' + otherLanguages.map(lang => `<span>${lang}</span>`).join('');
                     otherLanguagesOutput.style.display = 'block';
+                    otherLanguagesMarkdown = `\n\n**Outras linguagens detectadas:** ${otherLanguages.map(lang => `\`${lang}\``).join(', ')}`;
                 } else {
                     otherLanguagesOutput.style.display = 'none';
                 }
 
                 // --- 4. Gerar o Código Markdown ---
-                const markdownCodeContent = `![Gráfico de Linguagens GitHub para ${username}](${imageUrl})`;
+                const markdownCodeContent = `![Gráfico de Linguagens GitHub para ${username}](${imageUrl})${otherLanguagesMarkdown}`;
                 markdownCode.value = markdownCodeContent;
                 // markdownOutput.style.display é setado no onload da imagem
                 
