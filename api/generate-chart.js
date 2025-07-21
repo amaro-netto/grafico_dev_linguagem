@@ -2,15 +2,25 @@
 
 // Importa as bibliotecas necessárias
 const fetch = require('node-fetch');
-const QuickChart = require('quickchart-js'); // Importar o SDK QuickChart.js
+const QuickChart = require('quickchart-js');
 
 // Função principal da sua função serverless
 module.exports = async (req, res) => {
-    console.log('Iniciando a função generate-chart com QuickChart.io SDK...'); // Log atualizado
+    console.log('Iniciando a função generate-chart com QuickChart.io SDK...');
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate');
 
     const username = req.query.username;
+
+    // Captura os novos parâmetros de cor da URL
+    const bgColor = req.query.bgColor ? `#${req.query.bgColor}` : 'white';
+    const lineColor = req.query.lineColor ? `#${req.query.lineColor}` : 'rgba(54, 162, 235, 1)';
+    const fillColor = req.query.fillColor ? `rgba(${parseInt(req.query.fillColor.substring(0, 2), 16)}, ${parseInt(req.query.fillColor.substring(2, 4), 16)}, ${parseInt(req.query.fillColor.substring(4, 6), 16)}, 0.3)` : 'rgba(54, 162, 235, 0.3)';
+    const pointColor = req.query.pointColor ? `#${req.query.pointColor}` : 'rgba(54, 162, 235, 1)';
+    const textColor = req.query.textColor ? `#${req.query.textColor}` : '#222';
+    const gridColor = req.query.gridColor ? `rgba(${parseInt(req.query.gridColor.substring(0, 2), 16)}, ${parseInt(req.query.gridColor.substring(2, 4), 16)}, ${parseInt(req.query.gridColor.substring(4, 6), 16)}, 0.3)` : 'rgba(200, 200, 200, 0.3)';
+    const angleLineColor = req.query.angleLineColor ? `rgba(${parseInt(req.query.angleLineColor.substring(0, 2), 16)}, ${parseInt(req.query.angleLineColor.substring(2, 4), 16)}, ${parseInt(req.query.angleLineColor.substring(4, 6), 16)}, 0.15)` : 'rgba(0, 0, 0, 0.15)';
+
 
     if (!username) {
         console.error('Erro: Nome de usuário do GitHub não fornecido na URL.');
@@ -20,6 +30,7 @@ module.exports = async (req, res) => {
     try {
         console.log(`Buscando dados do GitHub para o usuário: ${username}`);
         const headers = {};
+
         if (process.env.GITHUB_PAT) {
             headers['Authorization'] = `token ${process.env.GITHUB_PAT}`;
             console.log('Usando Personal Access Token para autenticação da API GitHub.');
@@ -78,7 +89,7 @@ module.exports = async (req, res) => {
         }
 
         const sortedLanguages = Object.entries(languagePercentages)
-            .sort(([,a], [,b]) => b - a);
+            .sort(([, a], [, b]) => b - a);
 
         const MAX_RADAR_POINTS = 5;
         let finalLabels = [];
@@ -105,34 +116,34 @@ module.exports = async (req, res) => {
 
         console.log('Dados processados para o gráfico. Gerando imagem com quickchart-js SDK...');
 
-        // **USANDO quickchart-js SDK AQUI**
+        // USANDO quickchart-js SDK AQUI
         const chart = new QuickChart();
         chart.setWidth(500);
         chart.setHeight(500);
-        chart.setBackgroundColor('white'); // Define o fundo para branco
-        chart.setVersion('4'); // Ou a versão mais recente/estável do Chart.js que QuickChart.io suporta (pode ser 3 ou 4)
+        chart.setBackgroundColor(bgColor); // Usa a cor de fundo do parâmetro
+        chart.setVersion('4');
 
         chart.setConfig({
             type: 'radar',
-                data: {
-                    labels: finalLabels,
-                    datasets: [{
+            data: {
+                labels: finalLabels,
+                datasets: [{
                     label: '',
                     data: finalData,
-                    backgroundColor: 'rgba(54, 162, 235, 0.3)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: fillColor, // Usa a cor de preenchimento do parâmetro
+                    borderColor: lineColor,     // Usa a cor da linha do parâmetro
                     borderWidth: 2,
-                    pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                    pointBackgroundColor: pointColor, // Usa a cor do ponto do parâmetro
                     pointRadius: 5,
                     pointHoverRadius: 7
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    layout: {
+                }]
+            },
+            options: {
+                responsive: true,
+                layout: {
                     padding: 20
-                    },
-                    plugins: {
+                },
+                plugins: {
                     legend: {
                         display: false
                     },
@@ -140,60 +151,59 @@ module.exports = async (req, res) => {
                         display: true,
                         text: `Top 5 Linguagens por Bytes de Código de ${username}`,
                         font: {
-                        size: 20,
-                        weight: 'bold',
-                        family: 'Arial'
+                            size: 20,
+                            weight: 'bold',
+                            family: 'Arial'
                         },
-                        color: '#222'
+                        color: textColor // Usa a cor de texto do parâmetro
                     },
                     tooltip: {
                         callbacks: {
-                        label: function(context) {
-                            return `${context.label}: ${context.raw.toFixed(1)}%`;
-                        }
+                            label: function(context) {
+                                return `${context.label}: ${context.raw.toFixed(1)}%`;
+                            }
                         },
                         backgroundColor: 'rgba(0,0,0,0.7)',
                         titleColor: '#fff',
                         bodyColor: '#fff'
                     }
-                    },
-                    scales: {
+                },
+                scales: {
                     r: {
                         beginAtZero: true,
                         min: 0,
                         max: 100,
                         ticks: {
-                        stepSize: 20,
-                        backdropColor: 'transparent',
-                        color: '#555',
-                        font: {
-                            size: 12,
-                            weight: 'bold'
-                        }
+                            stepSize: 20,
+                            backdropColor: 'transparent',
+                            color: textColor, // Usa a cor de texto do parâmetro
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
                         },
                         pointLabels: {
-                        color: '#111',
-                        font: {
-                            size: 14,
-                            weight: 'bold'
-                        }
+                            color: textColor, // Usa a cor de texto do parâmetro
+                            font: {
+                                size: 14,
+                                weight: 'bold'
+                            }
                         },
                         grid: {
-                        color: 'rgba(200, 200, 200, 0.3)'
+                            color: gridColor // Usa a cor da grade do parâmetro
                         },
                         angleLines: {
-                        color: 'rgba(0, 0, 0, 0.15)'
+                            color: angleLineColor // Usa a cor das linhas de ângulo do parâmetro
                         }
                     }
-                    }
                 }
+            }
         });
 
         // Obter a imagem binária diretamente do SDK
-        const imageBuffer = await chart.toBinary(); // Este método busca a imagem
+        const imageBuffer = await chart.toBinary();
 
         console.log('Imagem do QuickChart.io recebida com sucesso via SDK.');
-
         res.status(200).send(imageBuffer);
         console.log('Imagem enviada com sucesso.');
 

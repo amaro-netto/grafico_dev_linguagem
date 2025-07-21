@@ -46,7 +46,9 @@
             max-width: 500px;
             height: auto;
             margin-top: 15px;
-            display: none;
+            display: none; /* Incialmente oculta */
+            border: 1px solid #eee; /* Borda sutil */
+            border-radius: 8px; /* Cantos arredondados */
         }
 
         /* Estilo para o campo de entrada do nome de usuário */
@@ -57,9 +59,10 @@
             border-radius: 4px;
             width: 70%;
             max-width: 250px;
+            box-sizing: border-box;
         }
 
-        /* Estilo para o botão "Gerar Gráfico" */
+        /* Estilo para o botão "Gerar Gráfico" e "Personalizar Cores" */
         button {
             padding: 10px 15px;
             background-color: #007bff;
@@ -84,12 +87,12 @@
             display: none;
             word-break: break-word;
         }
-        
+
         #error-message {
             color: red;
         }
 
-        /* Contêiner para a saída do código Markdown - AGORA É UM CONTÊINER SEPARADO */
+        /* Contêiner para a saída do código Markdown */
         #markdown-output {
             width: 80%;
             max-width: 600px;
@@ -97,19 +100,27 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            display: none;
+            display: none; /* Incialmente oculto */
             text-align: center;
         }
 
         /* Estilo para a área de texto do código Markdown */
         #markdown-code {
             width: 100%;
-            resize: vertical;
+            height: 80px; /* Altura fixa */
+            resize: none; /* Impede redimensionamento vertical */
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace; /* Fonte monoespaçada */
+            font-size: 0.9em;
+            background-color: #f8f8f8;
         }
 
-        /* Estilo para o aviso de Base64 */
-        .base64-warning {
-            color: orange;
+        /* Estilo para o aviso de URL */
+        .url-warning {
+            color: #666;
             font-size: 0.9em;
             margin-top: 10px;
             text-align: left;
@@ -121,7 +132,7 @@
             font-size: 0.9em;
             color: #666;
             text-align: center;
-            display: none;
+            display: none; /* Incialmente oculto */
             width: 100%;
         }
 
@@ -133,24 +144,156 @@
             margin: 2px;
             white-space: nowrap;
         }
+
+        /* Estilos para o painel de personalização de cores (inicialmente oculto) */
+        .color-customization-panel {
+            width: 100%;
+            max-width: 500px;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
+            margin-top: 15px;
+            display: none; /* Inicia oculto */
+            flex-direction: column;
+            gap: 10px;
+            text-align: left;
+        }
+
+        .color-customization-panel.active {
+            display: flex; /* Exibe quando ativo */
+        }
+
+        .color-option-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* Espaço entre label e input */
+            margin-bottom: 5px;
+        }
+
+        .color-option-group label {
+            flex-grow: 1; /* Permite que o label ocupe espaço */
+            font-size: 0.95em;
+            color: #333;
+        }
+
+        /* Estilo para o input de cor (oculto visualmente, clicável) */
+        .color-picker-wrapper {
+            position: relative;
+            width: 30px; /* Tamanho do "quadrado" clicável */
+            height: 30px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            overflow: hidden; /* Garante que o input de cor real não vaze */
+        }
+
+        .color-picker-wrapper input[type="color"] {
+            position: absolute;
+            top: -5px; /* Ajuste fino para cobrir a área */
+            left: -5px; /* Ajuste fino para cobrir a área */
+            width: 40px; /* Maior que o wrapper para cobrir totalmente */
+            height: 40px;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            opacity: 0; /* Torna o input de cor real invisível, mas funcional */
+        }
+
+        /* Visualização da cor selecionada no wrapper */
+        .color-display {
+            width: 100%;
+            height: 100%;
+            border-radius: 3px;
+            pointer-events: none; /* Permite o clique no input[type="color"] por baixo */
+        }
+
+        @media (max-width: 480px) {
+            .chart-container, #markdown-output {
+                width: 95%;
+                padding: 15px;
+            }
+            .color-customization-panel {
+                padding: 10px;
+            }
+            .color-option-group label {
+                font-size: 0.9em;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="chart-container">
         <h1>Minhas Linguagens GitHub</h1>
         <input type="text" id="github-username" placeholder="Digite seu nome de usuário do GitHub">
-        <button onclick="getGitHubLanguages()">Gerar Gráfico</button>
+        
+        <button id="generateChartButton" onclick="getGitHubLanguages()">Gerar Gráfico</button>
+        <button id="toggleColorsButton" onclick="toggleColorCustomization()">Personalizar Cores</button>
+
         <p id="loading-message">Gerando gráfico dinâmico...</p>
         <p id="error-message"></p>
         <img id="linguagensRadarImage" alt="Gráfico de Linguagens GitHub">
         <div id="other-languages-output">
         </div>
+
+        <div id="colorCustomizationPanel" class="color-customization-panel">
+            <h3>Cores do Gráfico:</h3>
+            <div class="color-option-group">
+                <label for="bgColor">Fundo do Gráfico:</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="bgColor" value="#ffffff" onchange="updateColorAndRegenerate()">
+                    <div class="color-display" style="background-color: #ffffff;"></div>
+                </div>
+            </div>
+            <div class="color-option-group">
+                <label for="lineColor">Linha do Radar:</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="lineColor" value="#36a2eb" onchange="updateColorAndRegenerate()">
+                    <div class="color-display" style="background-color: #36a2eb;"></div>
+                </div>
+            </div>
+            <div class="color-option-group">
+                <label for="fillColor">Preenchimento do Radar:</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="fillColor" value="#36a2eb" onchange="updateColorAndRegenerate()">
+                    <div class="color-display" style="background-color: #36a2eb;"></div>
+                </div>
+            </div>
+            <div class="color-option-group">
+                <label for="pointColor">Pontos do Radar:</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="pointColor" value="#36a2eb" onchange="updateColorAndRegenerate()">
+                    <div class="color-display" style="background-color: #36a2eb;"></div>
+                </div>
+            </div>
+            <div class="color-option-group">
+                <label for="textColor">Cor do Texto:</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="textColor" value="#222222" onchange="updateColorAndRegenerate()">
+                    <div class="color-display" style="background-color: #222222;"></div>
+                </div>
+            </div>
+            <div class="color-option-group">
+                <label for="gridColor">Cor da Grade:</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="gridColor" value="#c8c8c8" onchange="updateColorAndRegenerate()">
+                    <div class="color-display" style="background-color: #c8c8c8;"></div>
+                </div>
+            </div>
+            <div class="color-option-group">
+                <label for="angleLineColor">Cor das Linhas de Ângulo:</label>
+                <div class="color-picker-wrapper">
+                    <input type="color" id="angleLineColor" value="#000000" onchange="updateColorAndRegenerate()">
+                    <div class="color-display" style="background-color: #000000;"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="markdown-output">
         <h3>Código Markdown para seu README.md:</h3>
-        <p class="base64-warning">
-            **Atenção:** A URL abaixo aponta para sua função serverless no Vercel, que gera o gráfico dinamicamente.
+        <p class="url-warning">
+            A URL abaixo aponta para sua função serverless no Vercel, que gera o gráfico dinamicamente com as cores selecionadas.
         </p>
         <textarea id="markdown-code" rows="4" cols="50" readonly></textarea>
         <button onclick="copyMarkdown()">Copiar Código</button>
@@ -172,12 +315,55 @@
         }
 
         /**
+         * Alterna a visibilidade do painel de personalização de cores.
+         */
+        function toggleColorCustomization() {
+            const panel = document.getElementById('colorCustomizationPanel');
+            panel.classList.toggle('active');
+            const button = document.getElementById('toggleColorsButton');
+            if (panel.classList.contains('active')) {
+                button.textContent = 'Esconder Cores';
+            } else {
+                button.textContent = 'Personalizar Cores';
+            }
+        }
+
+        /**
+         * Atualiza a cor visual do "quadrado" e regenera o gráfico.
+         * Chamado pelo evento onchange dos inputs de cor.
+         */
+        function updateColorAndRegenerate() {
+            // Atualiza a cor de fundo do div de visualização
+            const inputs = document.querySelectorAll('.color-picker-wrapper input[type="color"]');
+            inputs.forEach(input => {
+                input.nextElementSibling.style.backgroundColor = input.value;
+            });
+
+            // Regenera o gráfico se um nome de usuário já tiver sido inserido
+            const usernameInput = document.getElementById('github-username');
+            if (usernameInput.value.trim() !== '') {
+                getGitHubLanguages();
+            }
+        }
+
+
+        /**
          * Função principal para gerar o gráfico e as tags de linguagens.
          * Esta função agora busca os dados diretamente da API do GitHub.
          */
         async function getGitHubLanguages(usernameFromParam = null) {
             const usernameInput = document.getElementById('github-username');
             const username = usernameFromParam || usernameInput.value.trim();
+
+            // Captura os valores dos inputs de cor
+            const bgColor = document.getElementById('bgColor').value;
+            const lineColor = document.getElementById('lineColor').value;
+            const fillColor = document.getElementById('fillColor').value;
+            const pointColor = document.getElementById('pointColor').value;
+            const textColor = document.getElementById('textColor').value;
+            const gridColor = document.getElementById('gridColor').value;
+            const angleLineColor = document.getElementById('angleLineColor').value;
+
 
             const loadingMessage = document.getElementById('loading-message');
             const errorMessage = document.getElementById('error-message');
@@ -189,8 +375,8 @@
             // Resetar estados anteriores
             errorMessage.style.display = 'none';
             errorMessage.textContent = '';
-            markdownOutput.style.display = 'none';
-            linguagensRadarImage.style.display = 'none';
+            // O markdownOutput e linguagensRadarImage só são exibidos se o gráfico for gerado com sucesso
+            // otherLanguagesOutput só é exibido se houver outras linguagens
             otherLanguagesOutput.style.display = 'none';
             otherLanguagesOutput.innerHTML = '';
 
@@ -198,57 +384,84 @@
                 errorMessage.textContent = 'Por favor, digite um nome de usuário do GitHub.';
                 errorMessage.style.display = 'block';
                 loadingMessage.style.display = 'none';
+                linguagensRadarImage.style.display = 'none'; // Esconde a imagem se não tiver username
+                markdownOutput.style.display = 'none'; // Esconde o markdown se não tiver username
                 return;
             }
 
-            loadingMessage.style.display = 'block';
+            // Apenas mostra a mensagem de loading se o gráfico ainda não foi gerado
+            if (linguagensRadarImage.style.display === 'none') {
+                loadingMessage.style.display = 'block';
+            }
+            
+            // Se o username mudou, esconde a imagem e o markdown até que a nova seja carregada
+            if (usernameInput.getAttribute('data-last-username') !== username) {
+                linguagensRadarImage.style.display = 'none';
+                markdownOutput.style.display = 'none';
+                loadingMessage.style.display = 'block';
+                usernameInput.setAttribute('data-last-username', username);
+            }
+            
 
             try {
                 // --- 1. Buscar dados dos repositórios do GitHub ---
-                const reposResponse = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`);
-                if (!reposResponse.ok) {
-                    if (reposResponse.status === 404) {
-                        throw new Error(`Usuário do GitHub "${username}" não encontrado.`);
-                    }
-                    if (reposResponse.status === 403) {
-                        throw new Error('Limite de requisições da API do GitHub excedido. Tente novamente mais tarde.');
-                    }
-                    throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
-                }
-                const repos = await reposResponse.json();
+                // Esta parte só precisa ser executada se o nome de usuário mudou
+                // Ou se ainda não temos os dados de linguagem para este usuário
+                let repos = JSON.parse(sessionStorage.getItem(`repos_${username}`)) || null;
+                let languageBytes = JSON.parse(sessionStorage.getItem(`languageBytes_${username}`)) || null;
+                let totalBytes = sessionStorage.getItem(`totalBytes_${username}`) || 0;
 
-                const languageBytes = {};
-                let totalBytes = 0;
-
-                const languageRequests = repos.map(async (repo) => {
-                    // Se o repositório for um fork e não tiver linguagens, pule
-                    if (repo.fork && repo.size === 0) {
-                        return;
-                    }
-
-                    const langUrl = repo.languages_url;
-                    const langResponse = await fetch(langUrl);
-
-                    if (!langResponse.ok) {
-                        console.warn(`Não foi possível buscar linguagens para o repositório ${repo.name}: ${langResponse.statusText}`);
-                        return;
-                    }
-                    const langsData = await langResponse.json();
-
-                    for (const lang in langsData) {
-                        if (langsData.hasOwnProperty(lang)) {
-                            languageBytes[lang] = (languageBytes[lang] || 0) + langsData[lang];
-                            totalBytes += langsData[lang];
+                if (!repos || !languageBytes || totalBytes === 0) {
+                    const reposResponse = await fetch(`https://api.github.com/users/${username}/repos?per_page=100`);
+                    if (!reposResponse.ok) {
+                        if (reposResponse.status === 404) {
+                            throw new Error(`Usuário do GitHub "${username}" não encontrado.`);
                         }
+                        if (reposResponse.status === 403) {
+                            throw new Error('Limite de requisições da API do GitHub excedido. Tente novamente mais tarde.');
+                        }
+                        throw new Error(`Erro ao buscar repositórios: ${reposResponse.statusText}`);
                     }
-                });
+                    repos = await reposResponse.json();
+                    
+                    languageBytes = {};
+                    totalBytes = 0;
 
-                await Promise.all(languageRequests);
+                    const languageRequests = repos.map(async (repo) => {
+                        if (repo.fork && repo.size === 0) {
+                            return;
+                        }
+
+                        const langUrl = repo.languages_url;
+                        const langResponse = await fetch(langUrl);
+
+                        if (!langResponse.ok) {
+                            console.warn(`Não foi possível buscar linguagens para o repositório ${repo.name}: ${langResponse.statusText}`);
+                            return;
+                        }
+                        const langsData = await langResponse.json();
+
+                        for (const lang in langsData) {
+                            if (langsData.hasOwnProperty(lang)) {
+                                languageBytes[lang] = (languageBytes[lang] || 0) + langsData[lang];
+                                totalBytes += langsData[lang];
+                            }
+                        }
+                    });
+
+                    await Promise.all(languageRequests);
+                    sessionStorage.setItem(`repos_${username}`, JSON.stringify(repos));
+                    sessionStorage.setItem(`languageBytes_${username}`, JSON.stringify(languageBytes));
+                    sessionStorage.setItem(`totalBytes_${username}`, totalBytes);
+                }
+
 
                 if (totalBytes === 0 && Object.keys(languageBytes).length === 0) {
                     errorMessage.textContent = `Nenhum repositório público com código detectável encontrado para o usuário "${username}".`;
                     errorMessage.style.display = 'block';
                     loadingMessage.style.display = 'none';
+                    linguagensRadarImage.style.display = 'none';
+                    markdownOutput.style.display = 'none';
                     return;
                 }
 
@@ -289,7 +502,15 @@
                 }
 
                 // --- 2. Gerar e exibir o gráfico (chamando a função serverless) ---
-                const imageUrl = `${VERCEL_PROJECT_URL}/api/generate-chart?username=${username}`; // A URL para sua função serverless
+                let imageUrl = `${VERCEL_PROJECT_URL}/api/generate-chart?username=${username}`;
+                // Adiciona os parâmetros de cor
+                imageUrl += `&bgColor=${bgColor.substring(1)}`; // Remove o '#'
+                imageUrl += `&lineColor=${lineColor.substring(1)}`;
+                imageUrl += `&fillColor=${fillColor.substring(1)}`;
+                imageUrl += `&pointColor=${pointColor.substring(1)}`;
+                imageUrl += `&textColor=${textColor.substring(1)}`;
+                imageUrl += `&gridColor=${gridColor.substring(1)}`;
+                imageUrl += `&angleLineColor=${angleLineColor.substring(1)}`;
 
                 linguagensRadarImage.src = imageUrl;
                 linguagensRadarImage.alt = `Gráfico de Linguagens GitHub para ${username}`;
@@ -297,21 +518,20 @@
                 linguagensRadarImage.onload = () => {
                     loadingMessage.style.display = 'none';
                     linguagensRadarImage.style.display = 'block'; 
-                    // otherLanguagesOutput será exibido abaixo, não escondido aqui
+                    markdownOutput.style.display = 'block'; // Exibe o markdown apenas após o gráfico carregar
                 };
 
                 linguagensRadarImage.onerror = () => {
                     loadingMessage.style.display = 'none';
-                    errorMessage.textContent = 'Erro ao carregar o gráfico. Verifique o nome de usuário ou tente novamente mais tarde.';
+                    errorMessage.textContent = 'Erro ao carregar o gráfico. Verifique o nome de usuário, as cores, ou tente novamente mais tarde.';
                     errorMessage.style.display = 'block';
                     linguagensRadarImage.style.display = 'none';
+                    markdownOutput.style.display = 'none';
                 };
-
 
                 // --- 3. Exibir as tags de outras linguagens ---
                 if (otherLanguages.length > 0) {
-                    // Removido 'Outras linguagens detectadas: '
-                    otherLanguagesOutput.innerHTML = otherLanguages.map(lang => `<span>${lang}</span>`).join('');
+                    otherLanguagesOutput.innerHTML = 'Outras linguagens detectadas: ' + otherLanguages.map(lang => `<span>${lang}</span>`).join('');
                     otherLanguagesOutput.style.display = 'block';
                 } else {
                     otherLanguagesOutput.style.display = 'none';
@@ -320,13 +540,16 @@
                 // --- 4. Gerar o Código Markdown ---
                 const markdownCodeContent = `![Gráfico de Linguagens GitHub para ${username}](${imageUrl})`;
                 markdownCode.value = markdownCodeContent;
-                markdownOutput.style.display = 'block';
+                // markdownOutput.style.display é setado no onload da imagem
+                
 
             } catch (error) {
                 console.error('Erro ao gerar gráfico ou buscar dados:', error);
                 errorMessage.textContent = `Erro: ${error.message}`;
                 errorMessage.style.display = 'block';
                 loadingMessage.style.display = 'none';
+                linguagensRadarImage.style.display = 'none';
+                markdownOutput.style.display = 'none';
             } finally {
                 // A mensagem de loading é escondida no onload/onerror da imagem
             }
@@ -343,8 +566,17 @@
             alert('Código Markdown copiado para a área de transferência!');
         }
 
+        // Função para inicializar as cores visuais dos seletores de cor
+        function initializeColorDisplays() {
+            const inputs = document.querySelectorAll('.color-picker-wrapper input[type="color"]');
+            inputs.forEach(input => {
+                input.nextElementSibling.style.backgroundColor = input.value;
+            });
+        }
+
         // Executa quando a janela é completamente carregada
         window.onload = () => {
+            initializeColorDisplays(); // Inicializa as cores dos displays
             const urlUsername = getQueryParam('username');
             if (urlUsername) {
                 document.getElementById('github-username').value = urlUsername;
