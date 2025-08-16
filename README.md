@@ -7,6 +7,7 @@
 ![Chart.js](https://img.shields.io/badge/Chart.js-FF6384?style=for-the-badge&logo=chartdotjs&logoColor=white)
 ![quickchart-js](https://img.shields.io/badge/quickchart.js-007ACC?style=for-the-badge&logo=javascript&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
+![Em Andamento](https://img.shields.io/badge/status-em%20andamento-yellow?style=for-the-badge)
 
 ## Gráfico
 
@@ -78,6 +79,6 @@ A inspiração para este projeto veio da popularidade dos "status" e "troféus" 
 A ideia foi criar uma ferramenta semelhante, focada especificamente nas estatísticas de linguagens, mas com a flexibilidade de ser um projeto que pode ser facilmente compreendido e modificado por desenvolvedores.
 A meta era transformar dados brutos da API do GitHub em uma visualização atraente e compartilhável, incentivando a personalização de perfis.
 
-## 📄 Licença
+## 📄 Quer Contribuir:
 
-Este projeto está licenciado sob a Licença MIT.
+Faça um Fork do projeto ou adicione Issues para me ajudar
